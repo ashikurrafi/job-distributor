@@ -5,9 +5,9 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
 #SBATCH --time=10:00:00
-#SBATCH --error=slurm_log/jobserver-%J.err
-#SBATCH --output=slurm_log/jobserver-%J.out
-#SBATCH --job-name=jobserver
+#SBATCH --error=slurm_log/job_distributor-%J.err
+#SBATCH --output=slurm_log/job_distributor-%J.out
+#SBATCH --job-name=job_distributor
 #SBATCH --mem-per-cpu=16000
 #SBATCH --mail-type=begin,end,fail
 #SBATCH --mail-user=abdurroufbd97@gmail.com
