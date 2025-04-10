@@ -22,6 +22,6 @@ module load python/python-3.11.4-gcc-12.2.0
 # Activate virtual environment (if needed)
 source venv/bin/activate
 
-# Run all 10 processes in parallel, each in a separate node
+# Run all server side code in a hpc node
 srun --ntasks=1 python start.py &
 wait
