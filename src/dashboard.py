@@ -244,7 +244,7 @@ def dashboard():
             }
             .stats-box {
                 position: absolute;
-                top: 205px;
+                top: 183px;
                 left: 20px;
                 background-color: white;
                 border-radius: 12px;
@@ -265,6 +265,27 @@ def dashboard():
                 border: 1px solid #ccc;
                 margin-top: 5px;
             }
+            
+            .hidden {
+                display: none;
+            }
+
+            #parametersTable table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }
+
+            #parametersTable th, #parametersTable td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+
+            #parametersTable th {
+                background-color: #f5f5f5;
+            }
+
 
         </style>
         <style>
@@ -385,50 +406,78 @@ def dashboard():
                 event.currentTarget.classList.add("active");
             }
 
-            function showMessageModal(jobId, message) {
+            function showMessageModal(jobId, message, parameters) {
                 const modal = document.getElementById("messageModal");
                 const jobIdSpan = document.getElementById("jobId");
                 const messageTimeline = document.getElementById("messageTimeline");
+                const parametersTable = document.getElementById("parametersTable");
+                const toggleBtn = document.getElementById("toggleParamsBtn");
 
                 // Set Job ID
                 jobIdSpan.textContent = jobId;
 
-                // Clear previous messages
+                // Clear old contents
                 messageTimeline.innerHTML = "";
+                parametersTable.innerHTML = "";
+                parametersTable.classList.add("hidden");
+                toggleBtn.innerHTML = "&#9654; View Parameters"; // ➤ icon
 
                 try {
-                    // Reverse the array so newest entries are first
+                    // Show parameters table
+                    if (parameters && typeof parameters === "object") {
+                        const table = document.createElement("table");
+                        table.innerHTML = `<tr><th>Key</th><th>Value</th></tr>`;
+                        for (let key in parameters) {
+                            const row = document.createElement("tr");
+                            row.innerHTML = `<td>${key}</td><td>${parameters[key]}</td>`;
+                            table.appendChild(row);
+                        }
+                        parametersTable.appendChild(table);
+                    }
+
+                    // Show job history (newest first)
                     const parsedMessage = JSON.parse(JSON.stringify(message)).reverse();
 
                     parsedMessage.forEach(entry => {
-                    const item = document.createElement("div");
-                    item.classList.add("timeline-item");
+                        const item = document.createElement("div");
+                        item.classList.add("timeline-item");
 
-                    // Use a template literal (backticks) so ${...} is replaced at runtime
-                    const timestamp = new Date(entry.timestamp * 1000).toLocaleString("en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                        hour12: true
+                        const timestamp = new Date(entry.timestamp * 1000).toLocaleString("en-US", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: true
+                        });
+
+                        item.innerHTML = `
+                            <div class="message">${entry.reason}</div>
+                            <div class="timestamp">${timestamp}</div>
+                        `;
+                        messageTimeline.appendChild(item);
                     });
 
-                    // Template literal:
-                    item.innerHTML = `
-                        <div class="message">${entry.reason}</div>
-                        <div class="timestamp">${timestamp}</div>
-                    `;
-
-                    messageTimeline.appendChild(item);
-                    });
                 } catch (e) {
                     messageTimeline.innerHTML = "<p>Invalid message format</p>";
                 }
 
                 modal.style.display = "block";
+            }
+
+            function toggleParams() {
+                const parametersTable = document.getElementById("parametersTable");
+                const toggleBtn = document.getElementById("toggleParamsBtn");
+
+                if (parametersTable.classList.contains("hidden")) {
+                    parametersTable.classList.remove("hidden");
+                    toggleBtn.innerHTML = "&#9660; Hide Parameters"; // ▼
+                } else {
+                    parametersTable.classList.add("hidden");
+                    toggleBtn.innerHTML = "&#9654; View Parameters"; // ➤
+                }
             }
 
             function closeMessageModal() {
@@ -483,7 +532,7 @@ def dashboard():
     </head>
     <body>
         <h1 style="text-align: center; font-size: 32px; font-weight: bold; color: #333; background-color: #ddd; padding: 20px; border-radius: 8px; box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);">📊 Job Distribution Dashboard 📊</h1>
-        <button class="modal-button" onclick="openModal()"> 
+        <button style="display:none" class="modal-button" onclick="openModal()"> 
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
                 <path d="M0 0h1v15h15v1H0V0zM6 12V5h1v7H6zm4 0V3h1v9h-1zm4 0V7h1v5h-1z"/>
             </svg>
@@ -584,10 +633,18 @@ def dashboard():
             <div class="modal-content">
                 <span class="close" onclick="closeMessageModal()">&times;</span>
                 <h2>Job History</h2>
-                <p><strong>Job ID:</strong> <span id="jobId"></span></p>
+
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <p><strong>Job ID:</strong> <span id="jobId"></span></p>
+                    <button id="toggleParamsBtn" onclick="toggleParams()" style="cursor: pointer; border: none; background: none; font-weight: bold;">&#9654; View Parameters</button>
+                </div>
+
+                <div id="parametersTable" class="hidden" style="margin-bottom: 15px;"></div>
+
                 <div class="timeline" id="messageTimeline"></div>
             </div>
         </div>
+
 
         {% for status in ['SERVED', 'DONE', 'ABORTED', 'NOT_STARTED'] %}
             <div id="{{ status }}" class="tabcontent {% if loop.first %}active{% endif %}">
@@ -651,7 +708,7 @@ def dashboard():
                                     &#8597;
                                 </span>
                             </th>
-                            <th>Message</th>
+                            <th>Job History</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -664,7 +721,7 @@ def dashboard():
                             <td>{{ format_timestamp(job.completion_timestamp - (60*60*4)) }}</td>
                             <td>{{ (job.required_time / 60) | round }}</td>
                             <td>
-                                <button onclick="showMessageModal({{ job.id }}, {{ job.message }})">View Message</button>
+                                <button onclick="showMessageModal({{ job.id }}, {{ job.message }}, {{ job.parameters }})">View Details</button>
                             </td>
                         </tr>
                     {% endfor %}

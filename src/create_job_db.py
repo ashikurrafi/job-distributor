@@ -37,6 +37,7 @@ def generate_csv(filename, parameters_dict):
         "message": ["[]" for _ in range(total_jobs)],
         "parameters": parameters_list
     })
+    
     df.to_csv(filename, index=False)
     logging.info(f"CSV file '{filename}' generated with {total_jobs} jobs.")
 
