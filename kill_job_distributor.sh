@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Look for job with NAME=job_distributor and get its JOBID
-JOBID=$(squeue -u "$USER" | awk '$3 == "job_distributor" {print $1; exit}')
+JOBID=$(squeue -u "$USER" | awk '$3 == "job_dist" {print $1; exit}')
 
 # Check if a matching job was found
 if [ -z "$JOBID" ]; then
