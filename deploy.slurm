@@ -33,5 +33,5 @@ pip install --no-cache-dir -r requirements.txt
 trap 'echo "Caught SIGTERM. Running cleanup..."; python stop.py; exit 0' SIGTERM
 
 # Start main service
-srun --ntasks=1 python start.py &
+python start.py &
 wait
