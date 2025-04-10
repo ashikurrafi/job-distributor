@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# create slurm log directory
-mkdir slurm_log
-
 #SBATCH --account=myuksel
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -15,7 +12,11 @@ mkdir slurm_log
 #SBATCH --mail-type=begin,end,fail
 #SBATCH --mail-user=abdurroufbd97@gmail.com
 
+# ✅ Script execution starts here
 echo "Slurm nodes assigned: $SLURM_JOB_NODELIST"
+
+# ✅ Make sure log directory exists
+mkdir -p slurm_log
 
 # Load Python 3 (not 2.7!)
 module load python/python-3.11.4-gcc-12.2.0
