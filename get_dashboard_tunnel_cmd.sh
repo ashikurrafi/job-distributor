@@ -5,8 +5,8 @@
 # ---------------------------
 LOCAL_PORT=5050
 REMOTE_PORT=5050
-PRIVATE_KEY_PATH="$HOME/.ssh/id_rsa"      # Use full path for safety
-USERNAME="arouf"                          # Your HPC username
+PRIVATE_KEY_PATH="<PRIVATE_KEY_FILE>"      # Use full path for safety
+USERNAME=$USER                          # Your HPC username
 LOGIN_NODE="stokes.ist.ucf.edu"           # Or newton.ist.ucf.edu
 # ---------------------------
 
@@ -18,8 +18,8 @@ if [ -z "$NODE" ]; then
     exit 1
 fi
 
-echo "Detected compute node (Job Distributor): $NODE"
-echo "Setting up SSH tunnel from localhost:${LOCAL_PORT} to ${NODE}:${REMOTE_PORT} via ${LOGIN_NODE}"
+# echo "Detected compute node (Job Distributor): $NODE"
+# echo "Setting up SSH tunnel from localhost:${LOCAL_PORT} to ${NODE}:${REMOTE_PORT} via ${LOGIN_NODE}"
 
 # Compose SSH command
 SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
