@@ -12,10 +12,10 @@
 #SBATCH --mail-type=begin,end,fail
 #SBATCH --mail-user=abdurroufbd97@gmail.com
 
-# ✅ Script execution starts here
+# Script execution starts here
 echo "Slurm nodes assigned: $SLURM_JOB_NODELIST"
 
-# ✅ Make sure log directory exists
+# Make sure log directory exists
 mkdir -p slurm_log
 
 # Load Python 3 (not 2.7!)
