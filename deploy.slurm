@@ -1,12 +1,15 @@
 #!/bin/bash
 
+# create slurm log directory
+mkdir slurm_log
+
 #SBATCH --account=myuksel
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
 #SBATCH --time=10:00:00
-#SBATCH --error=jobserver-%J.err
-#SBATCH --output=jobserver-%J.out
+#SBATCH --error=slurm_log/jobserver-%J.err
+#SBATCH --output=slurm_log/jobserver-%J.out
 #SBATCH --job-name=jobserver
 #SBATCH --mem-per-cpu=16000
 #SBATCH --mail-type=begin,end,fail
