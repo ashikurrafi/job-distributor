@@ -11,7 +11,7 @@ LOGIN_NODE="stokes.ist.ucf.edu"           # Or newton.ist.ucf.edu
 # ---------------------------
 
 # Get the compute node from squeue
-NODE=$(squeue -u "$USER" | awk 'NR==2 {print $NF}')
+NODE=$(squeue -u "$USER" | awk '$3 == "job_distributor" {print $8; exit}')
 
 if [ -z "$NODE" ]; then
     echo "Error: No running job found for user $USER."
