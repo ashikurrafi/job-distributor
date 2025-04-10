@@ -20,6 +20,10 @@ module load python/python-3.11.4-gcc-12.2.0
 # Activate venv
 source venv/bin/activate
 
+# Upgrade pip and install dependencies
+python -m pip install --upgrade pip
+pip install --no-cache-dir -r requirements.txt
+
 # Handle SIGTERM from scancel
 trap 'echo "Caught SIGTERM. Attempting cleanup..."; python stop.py; exit 0' SIGTERM
 
