@@ -6,7 +6,7 @@
     "server_port": 5000,
     "timeoutLimit": 300,
     "cleanupInterval": 600,
-    "fresh_start": true,
+    "fresh_start": false,
     "parameters": {
         "epochs": [2, 4, 8, 16],
         "optimizer": ["adam", "sgd", "lbfgs"],
