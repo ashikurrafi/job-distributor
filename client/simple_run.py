@@ -3,38 +3,50 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
-from itertools import product
-import time
+import argparse
 import pandas as pd
+import time
 import os
+import json
 import logging
+
+# ---------------- Argument Parser ----------------
+parser = argparse.ArgumentParser()
+parser.add_argument("--job_id", type=int, required=True)
+parser.add_argument("--epochs", type=int, required=True)
+parser.add_argument("--optimizer", choices=["adam", "sgd", "lbfgs"], required=True)
+parser.add_argument("--hidden_layers", type=int, required=True)
+parser.add_argument("--nodes", type=int, required=True)
+args = parser.parse_args()
 
 # ---------------- Logger Setup ----------------
 LOG_DIR = "log"
-LOG_FILE = os.path.join(LOG_DIR, "grid_search.log")
+LOG_FILE = os.path.join(LOG_DIR, f"job_{args.job_id}.log")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(LOG_FILE),
         logging.StreamHandler()
     ]
 )
-
 logger = logging.getLogger(__name__)
 
-# ---------------- Configuration ----------------
+# ---------------- Config ----------------
 device = torch.device("cpu")
-
-EPOCHS_LIST = [1, 2, 4, 8]
-OPTIMIZERS_LIST = ["adam", "sgd", "lbfgs"]
-HIDDEN_LAYERS_LIST = [1, 2, 3, 4]
-NODES_IN_HIDDEN_LAYERS_LIST = [5, 10, 20, 30]
 BATCH_SIZE = 64
 TRAIN_SIZE = 5000
 TEST_SIZE = 1000
+
+RESULT_DIR = f"results/job_{args.job_id}"
+os.makedirs(RESULT_DIR, exist_ok=True)
+
+# Save config to JSON
+config_path = os.path.join(RESULT_DIR, "config.json")
+with open(config_path, "w") as f:
+    json.dump(vars(args), f, indent=4)
 
 # ---------------- Data ----------------
 def load_mnist(train_size=TRAIN_SIZE, test_size=TEST_SIZE):
@@ -42,8 +54,14 @@ def load_mnist(train_size=TRAIN_SIZE, test_size=TEST_SIZE):
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
-    train_dataset = datasets.MNIST(root="./data", train=True, transform=transform, download=True)
-    test_dataset = datasets.MNIST(root="./data", train=False, transform=transform, download=True)
+
+    if not os.path.exists("./data/MNIST/processed/training.pt"):
+        logger.info("🔽 Downloading MNIST...")
+        datasets.MNIST(root="./data", train=True, download=True)
+        datasets.MNIST(root="./data", train=False, download=True)
+
+    train_dataset = datasets.MNIST(root="./data", train=True, transform=transform, download=False)
+    test_dataset = datasets.MNIST(root="./data", train=False, transform=transform, download=False)
 
     train_subset = Subset(train_dataset, list(range(train_size)))
     test_subset = Subset(test_dataset, list(range(test_size)))
@@ -109,54 +127,48 @@ def train_model(model, optimizer, criterion, loader, epochs, opt_name):
             })
     return pd.DataFrame(logs)
 
-def evaluate_model(model, loader, epoch):
+def evaluate_model(model, loader, epochs):
     model.eval()
-    correct, total = 0, 0
-    start = time.time()
-    with torch.no_grad():
-        for X, y in loader:
-            X = X.view(X.size(0), -1)
-            output = model(X)
-            preds = torch.argmax(output, dim=1)
-            correct += (preds == y).sum().item()
-            total += y.size(0)
-    accuracy = correct / total
-    elapsed = time.time() - start
-    return {
-        "epoch": epoch + 1,
-        "accuracy": round(accuracy, 4),
-        "elapsed_time": round(elapsed, 4)
-    }
+    logs = []
+    for epoch in range(epochs):
+        correct, total = 0, 0
+        start = time.time()
+        with torch.no_grad():
+            for X, y in loader:
+                X = X.view(X.size(0), -1)
+                output = model(X)
+                preds = torch.argmax(output, dim=1)
+                correct += (preds == y).sum().item()
+                total += y.size(0)
+        accuracy = correct / total
+        elapsed = time.time() - start
+        logs.append({
+            "epoch": epoch + 1,
+            "accuracy": round(accuracy, 4),
+            "elapsed_time": round(elapsed, 4)
+        })
+    return pd.DataFrame(logs)
 
-# ---------------- Grid Search ----------------
-def run_grid_search():
+# ---------------- Main ----------------
+def main():
+    logger.info(f"🚀 Job {args.job_id} started")
+    logger.info(f"📌 Config: {vars(args)}")
+
     train_loader, test_loader = load_mnist()
-    combo_id = 0
 
-    for epochs, opt_name, hl, nodes in product(EPOCHS_LIST, OPTIMIZERS_LIST, HIDDEN_LAYERS_LIST, NODES_IN_HIDDEN_LAYERS_LIST):
-        combo_id += 1
-        result_dir = f"results/comb_{combo_id}"
-        os.makedirs(result_dir, exist_ok=True)
+    model = build_mlp(28*28, args.hidden_layers, args.nodes, 10).to(device)
+    optimizer = get_optimizer(args.optimizer, model)
+    criterion = nn.CrossEntropyLoss()
 
-        logger.info(f"🔍 Running combo {combo_id} | epochs={epochs}, optimizer={opt_name}, layers={hl}, nodes={nodes}")
+    logger.info("🧠 Training started...")
+    train_logs = train_model(model, optimizer, criterion, train_loader, args.epochs, args.optimizer)
+    train_logs.to_csv(os.path.join(RESULT_DIR, "train.csv"), index=False)
 
-        model = build_mlp(28*28, hl, nodes, 10).to(device)
-        optimizer = get_optimizer(opt_name, model)
-        criterion = nn.CrossEntropyLoss()
+    logger.info("🧪 Evaluating...")
+    test_logs = evaluate_model(model, test_loader, args.epochs)
+    test_logs.to_csv(os.path.join(RESULT_DIR, "test.csv"), index=False)
 
-        train_logs = train_model(model, optimizer, criterion, train_loader, epochs, opt_name)
+    logger.info(f"✅ Job {args.job_id} completed successfully. Results saved to '{RESULT_DIR}'")
 
-        test_logs = []
-        for epoch in range(epochs):
-            result = evaluate_model(model, test_loader, epoch)
-            test_logs.append(result)
-
-        # Save logs as CSV
-        train_logs.to_csv(os.path.join(result_dir, "train.csv"), index=False)
-        pd.DataFrame(test_logs).to_csv(os.path.join(result_dir, "test.csv"), index=False)
-
-        logger.info(f"✅ Saved results for combo {combo_id} to '{result_dir}'")
-
-# ---------------- Run ----------------
 if __name__ == "__main__":
-    run_grid_search()
+    main()
