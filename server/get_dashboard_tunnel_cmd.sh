@@ -40,13 +40,12 @@ if [ -z "$NODE" ]; then
 fi
 
 # 🔍 Check if dashboard port is open on compute node
-IS_OPEN=$(ssh -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE} "ssh $NODE ss -ltn | grep -q ':$REMOTE_PORT' && echo 'open' || echo 'closed'")
+IS_OPEN=$(ssh "$NODE" ss -ltn | grep -q ":$REMOTE_PORT" && echo "open" || echo "closed")
 
 if [ "$IS_OPEN" = "open" ]; then
-    # ✅ Compose SSH command
+    # ✅ Compose SSH command (FOR LOCAL MACHINE)
     SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
 
-    # 💡 Output the tunnel command
     echo "📡 Detected compute node: $NODE"
     echo "🌐 Dashboard port: $PORT is active!"
     echo ""
