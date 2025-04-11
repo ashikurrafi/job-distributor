@@ -93,7 +93,7 @@ def main():
 
             if current_proc.returncode == 0:
                 logger.info(f"Job {job_id} completed successfully.")
-                update_status(job_id, "DONE", f"{runner_id} Job finished successfully.")
+                update_status(job_id, "DONE", f"{runner_id} finished successfully.")
             else:
                 logger.error(f"Job {job_id} failed. Error:\n{stderr}")
                 update_status(job_id, "ABORTED", f"Execution failed at {runner_id}: {stderr[:200]}")

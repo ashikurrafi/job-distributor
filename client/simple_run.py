@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 # ---------------- Config ----------------
 device = torch.device("cpu")
 BATCH_SIZE = 64
-TRAIN_SIZE = 60000
-TEST_SIZE = 10000
+TRAIN_SIZE = 6000
+TEST_SIZE = 1000
 
 # Save config to JSON
 config_path = os.path.join(RESULT_DIR, "params.json")

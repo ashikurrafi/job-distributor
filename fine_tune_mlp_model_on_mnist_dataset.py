@@ -33,7 +33,7 @@ OPTIMIZERS_LIST = ["adam", "sgd", "lbfgs"]
 HIDDEN_LAYERS_LIST = [1, 2, 3, 4]
 NODES_IN_HIDDEN_LAYERS_LIST = [5, 10, 20, 30]
 BATCH_SIZE = 64
-TRAIN_SIZE = 5000
+TRAIN_SIZE = 6000
 TEST_SIZE = 1000
 
 # ---------------- Data ----------------
