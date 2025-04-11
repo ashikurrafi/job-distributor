@@ -1,16 +1,16 @@
 #!/bin/bash
 
-#SBATCH --account=<GROUPID>
+#SBATCH --account=myuksel
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
-#SBATCH --time=<HH:MM:SS>
+#SBATCH --time=10:00:00
 #SBATCH --error=slurm_log/job_distributor-%J.err
 #SBATCH --output=slurm_log/job_distributor-%J.out
 #SBATCH --job-name=job_distributor
 #SBATCH --mem-per-cpu=8192
 #SBATCH --mail-type=begin,end,fail
-#SBATCH --mail-user=<YOUR_EMAIL_ADDR>
+#SBATCH --mail-user=abdurroufbd97@gmail.com
 
 # Script execution starts here
 echo "Slurm nodes assigned: $SLURM_JOB_NODELIST"
