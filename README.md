@@ -6,9 +6,9 @@ A lightweight job distribution framework designed for running thousands of param
 
 ## Key Features
 
-- Easily define and generate all combinations of parameters
-- Distribute jobs across multiple runners/processes
-- Monitor job status through web based dashboard application
+- Easily define and generate all combinations of parameters through `config.json`
+- Distribute jobs across multiple runners/processes 
+- Monitor job status through web based application `Dashboard`
 - Scalable: add more computing resources when resources are available to use
 
 ## Use Case
