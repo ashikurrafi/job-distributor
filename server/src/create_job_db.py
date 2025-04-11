@@ -24,7 +24,10 @@ def setup_log(args):
 def generate_csv(filename, parameters_dict):
     parameters_keys = list(parameters_dict.keys())
     parameters_values = list(parameters_dict.values())
-    parameters_list = [dict(zip(parameters_keys, combination)) for combination in product(*parameters_values)]
+    parameters_list = [
+        json.dumps(dict(zip(parameters_keys, combination)))
+        for combination in product(*parameters_values)
+    ]
     total_jobs = len(parameters_list)
     
     df = pd.DataFrame({

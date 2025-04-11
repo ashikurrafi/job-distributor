@@ -1,5 +1,5 @@
 {
-    "expId": "ml_param_tune",
+    "expId": "mnist_parameter_tune",
     "jobDB": "jobs.csv",
     "host": "0.0.0.0",
     "dashboard_port": 5050,
@@ -8,9 +8,9 @@
     "cleanupInterval": 600,
     "fresh_start": true,
     "parameters": {
-        "epochs": [1, 2, 4, 8],
+        "epochs": [2, 4, 8, 16],
         "optimizer": ["adam", "sgd", "lbfgs"],
-        "hidden_layers": [1, 2, 3, 4],
+        "hidden_layers": [2, 3, 4, 8],
         "nodes_in_hidden_layers": [5, 10, 20, 30]
     }
 }

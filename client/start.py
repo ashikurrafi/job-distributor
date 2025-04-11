@@ -3,6 +3,9 @@ import os
 import subprocess
 import logging
 import socket
+import signal
+import sys
+import atexit
 
 # ---------------- Load Config ----------------
 CONFIG_PATH = "config.json"
@@ -19,7 +22,7 @@ exp_dir = os.path.join(exp_id)
 os.makedirs(exp_dir, exist_ok=True)
 
 # ---------------- Logger Setup ----------------
-user = os.getenv("USER") or os.getenv("USERNAME") or "unknown_user"
+user = os.getenv("USER") or "unknown_user"
 host = socket.gethostname()
 log_filename = f"start_{user}@{host}.log"
 log_path = os.path.join(exp_dir, log_filename)
@@ -34,11 +37,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ---------------- Launch Runners ----------------
+# ---------------- Global Process List ----------------
 processes = []
 
-logger.info(f"🚀 Starting {num_processes} runners for experiment '{exp_id}'")
-logger.info(f"📡 API URL: {api_url}")
+# ---------------- Cleanup Handler ----------------
+def cleanup():
+    logger.info("Cleaning up all child processes...")
+    for proc in processes:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except Exception as e:
+            logger.warning(f"Failed to kill process {proc.pid}: {e}")
+
+atexit.register(cleanup)
+
+# ---------------- Signal Handler ----------------
+def signal_handler(sig, frame):
+    logger.info(f"Received signal {sig}. Exiting...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+# ---------------- Launch Runners ----------------
+logger.info(f"Starting {num_processes} runners for experiment '{exp_id}'")
+logger.info(f"API URL: {api_url}")
 for i in range(1, num_processes + 1):
     cmd = [
         "python", "runner.py",
@@ -46,14 +69,13 @@ for i in range(1, num_processes + 1):
         "--process_id", str(i),
         "--expId", exp_id
     ]
-    log_file = os.path.join(exp_dir, f"runner_{i}.log")
-    logger.info(f"📌 Launching runner {i}: {' '.join(cmd)} → {log_file}")
+    
+    logger.info(f"Launching runner {i}: {' '.join(cmd)}")
 
-    with open(log_file, "w") as logf:
-        proc = subprocess.Popen(cmd, stdout=logf, stderr=logf)
-        processes.append(proc)
+    proc = subprocess.Popen(cmd, preexec_fn=os.setsid)
+    processes.append(proc)
 
 # ---------------- Wait for Completion ----------------
 for i, proc in enumerate(processes, start=1):
     proc.wait()
-    logger.info(f"✅ Runner {i} completed.")
+    logger.info(f"Runner {i} completed.")

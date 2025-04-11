@@ -143,7 +143,7 @@ def request_job():
         job_parameters = json.loads(df.at[idx, "parameters"])
 
     logging.info(f"Job {job_id} assigned to {requested_by} and marked as SERVED.")
-    return jsonify({"job_id": job_id, "paramters": job_parameters, "status": STATUS_SERVED}), 200
+    return jsonify({"job_id": job_id, "parameters": job_parameters, "status": STATUS_SERVED}), 200
 
 
 @app.route("/update_job_status", methods=["POST"])
