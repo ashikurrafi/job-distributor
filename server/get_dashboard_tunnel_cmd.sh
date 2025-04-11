@@ -39,12 +39,19 @@ if [ -z "$NODE" ]; then
     exit 1
 fi
 
-# ✅ Compose SSH command
-SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
+# 🔍 Check if dashboard port is open on compute node
+IS_OPEN=$(ssh -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE} "ssh $NODE ss -ltn | grep -q ':$REMOTE_PORT' && echo 'open' || echo 'closed'")
 
-# 💡 Output the tunnel command
-echo "📡 Detected compute node: $NODE"
-echo "🌐 Dashboard port: $PORT"
-echo ""
-echo "👉 Run this SSH command from your local machine:"
-echo "$SSH_CMD"
+if [ "$IS_OPEN" = "open" ]; then
+    # ✅ Compose SSH command
+    SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
+
+    # 💡 Output the tunnel command
+    echo "📡 Detected compute node: $NODE"
+    echo "🌐 Dashboard port: $PORT is active!"
+    echo ""
+    echo "👉 Run this SSH command from your local machine:"
+    echo "$SSH_CMD"
+else
+    echo "⏳ Waiting for dashboard to be deployed on $NODE:$PORT..."
+fi
