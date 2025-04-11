@@ -2,4 +2,3 @@
 /venv/*
 /venv/
 *.csv
-*.json
