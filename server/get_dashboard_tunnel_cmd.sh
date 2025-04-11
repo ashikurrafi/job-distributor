@@ -1,29 +1,50 @@
 #!/bin/bash
 
 # ---------------------------
-# Configuration (edit these)
+# Configuration
 # ---------------------------
-LOCAL_PORT=5050
-REMOTE_PORT=5050
-PRIVATE_KEY_PATH="<PRIVATE_KEY_FILE>"      # Use full path for safety
-USERNAME=$USER                          # Your HPC username
-LOGIN_NODE="stokes.ist.ucf.edu"           # Or newton.ist.ucf.edu
+CONFIG_FILE="config.json"
+PRIVATE_KEY_PATH="<PRIVATE_KEY_FILE>"   # Replace with your actual path
+USERNAME="$USER"
+LOGIN_NODE="stokes.ist.ucf.edu"
+JOB_NAME="job_dist"
 # ---------------------------
 
-# Get the compute node from squeue
-NODE=$(squeue -u "$USER" | awk '$3 == "job_dist" {print $8; exit}')
-
-if [ -z "$NODE" ]; then
-    echo "Error: No running job found for user $USER."
+# 🧠 Extract dashboard_port from config.json using jq
+if ! command -v jq &> /dev/null; then
+    echo "❌ 'jq' is required but not installed. Please install jq and try again."
     exit 1
 fi
 
-# echo "Detected compute node (Job Distributor): $NODE"
-# echo "Setting up SSH tunnel from localhost:${LOCAL_PORT} to ${NODE}:${REMOTE_PORT} via ${LOGIN_NODE}"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "❌ config.json not found in current directory."
+    exit 1
+fi
 
-# Compose SSH command
+PORT=$(jq -r '.dashboard_port' "$CONFIG_FILE")
+
+if [ -z "$PORT" ] || [ "$PORT" = "null" ]; then
+    echo "❌ Could not extract 'dashboard_port' from config.json"
+    exit 1
+fi
+
+LOCAL_PORT=$PORT
+REMOTE_PORT=$PORT
+
+# 🔍 Get the compute node for job with name $JOB_NAME
+NODE=$(squeue -u "$USER" | awk -v job="$JOB_NAME" '$3 == job {print $NF; exit}')
+
+if [ -z "$NODE" ]; then
+    echo "❌ No running job found with name '$JOB_NAME' for user $USER."
+    exit 1
+fi
+
+# ✅ Compose SSH command
 SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
 
-# Echo the command
-echo "Run this SSH command from your local machine"
+# 💡 Output the tunnel command
+echo "📡 Detected compute node: $NODE"
+echo "🌐 Dashboard port: $PORT"
+echo ""
+echo "👉 Run this SSH command from your local machine:"
 echo "$SSH_CMD"
