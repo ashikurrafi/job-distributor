@@ -10,12 +10,13 @@ LOGIN_NODE="stokes.ist.ucf.edu"
 JOB_NAME="job_dist"
 # ---------------------------
 
-# 🧠 Extract dashboard_port from config.json using jq
+# 🧠 Check for jq
 if ! command -v jq &> /dev/null; then
     echo "❌ 'jq' is required but not installed. Please install jq and try again."
     exit 1
 fi
 
+# 🧠 Load dashboard_port from config.json
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "❌ config.json not found in current directory."
     exit 1
@@ -39,18 +40,24 @@ if [ -z "$NODE" ]; then
     exit 1
 fi
 
-# 🔍 Check if dashboard port is open on compute node
-IS_OPEN=$(ssh "$NODE" ss -ltn | grep -q ":$REMOTE_PORT" && echo "open" || echo "closed")
+echo "📡 Monitoring port $PORT on node $NODE..."
+echo "⏳ Waiting for dashboard to be deployed..."
 
-if [ "$IS_OPEN" = "open" ]; then
-    # ✅ Compose SSH command (FOR LOCAL MACHINE)
-    SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
+# 🔁 Check every 1 second until port is open
+while true; do
+    IS_OPEN=$(ssh "$NODE" ss -ltn | grep -q ":$REMOTE_PORT" && echo "open" || echo "closed")
+    
+    if [ "$IS_OPEN" = "open" ]; then
+        echo "✅ Dashboard is now live on $NODE:$PORT"
 
-    echo "📡 Detected compute node: $NODE"
-    echo "🌐 Dashboard port: $PORT is active!"
-    echo ""
-    echo "👉 Run this SSH command from your local machine:"
-    echo "$SSH_CMD"
-else
-    echo "⏳ Waiting for dashboard to be deployed on $NODE:$PORT..."
-fi
+        # 🔑 Compose SSH command to be run on local machine
+        SSH_CMD="ssh -L ${LOCAL_PORT}:${NODE}:${REMOTE_PORT} -i ${PRIVATE_KEY_PATH} ${USERNAME}@${LOGIN_NODE}"
+
+        echo ""
+        echo "👉 Run this SSH command from your local machine to access the dashboard:"
+        echo "$SSH_CMD"
+        break
+    fi
+
+    sleep 1
+done
