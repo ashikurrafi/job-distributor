@@ -1,0 +1,6 @@
+{
+    "expId": "ml_param_tune",
+    "job_server": "http://localhost",
+    "port": 5000,
+    "number_of_parallel_process": 8
+}

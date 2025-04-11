@@ -9,7 +9,7 @@
     "fresh_start": true,
     "parameters": {
         "epochs": [1, 2, 4, 8],
-        "optimizer": ["adam", "sgd", "lbgs"],
+        "optimizer": ["adam", "sgd", "lbfgs"],
         "hidden_layers": [1, 2, 3, 4],
         "nodes_in_hidden_layers": [5, 10, 20, 30]
     }
