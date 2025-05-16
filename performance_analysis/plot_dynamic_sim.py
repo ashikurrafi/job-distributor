@@ -41,5 +41,5 @@ ax.set_xticklabels(df["hostname"], rotation=90)
 ax.legend()
 
 plt.tight_layout()
-plt.savefig("task_vs_scaled_time.png", dpi=300)  # Save as PNG
+plt.savefig("task_vs_scaled_time.pdf", dpi=300)
 # plt.show()  # Optional: Uncomment to also display
