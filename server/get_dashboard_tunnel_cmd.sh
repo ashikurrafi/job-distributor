@@ -6,7 +6,7 @@
 CONFIG_FILE="config.json"
 PRIVATE_KEY_PATH="<PRIVATE_KEY_FILE>"   # Replace with your actual path
 USERNAME="$USER"
-LOGIN_NODE="stokes.ist.ucf.edu"
+LOGIN_NODE="hpc_host_name"
 JOB_NAME="job_dist"
 # ---------------------------
 

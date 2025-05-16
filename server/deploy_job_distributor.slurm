@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --account=myuksel
+#SBATCH --account=hpc_account
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
@@ -10,7 +10,7 @@
 #SBATCH --job-name=job_distributor
 #SBATCH --mem-per-cpu=8192
 #SBATCH --mail-type=begin,end,fail
-#SBATCH --mail-user=abdurroufbd97@gmail.com
+#SBATCH --mail-user=your_email_address@mail.com
 
 # Script execution starts here
 echo "Slurm nodes assigned: $SLURM_JOB_NODELIST"
