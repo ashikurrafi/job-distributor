@@ -75,7 +75,6 @@ mean_runtime_by_requester = {
 }
 
 nodes = len(mean_runtime_by_requester) # q-nodes
-
 average_task_times_on_node = [mean_runtime_by_requester[key] for key in mean_runtime_by_requester]
 
 # Initial allocation of jobs on nodes
