@@ -1,0 +1,25 @@
+1. speculative differ from the real one cuz it doesn't account for 
+    1.1 Failed jobs
+    1.2 Timeout error
+    1.3 Early termination of machines, means termination before end of the actual experiment
+    1.4 Job distribution communication and scheduling overhead isn't accounted 
+    
+2. Speculative once a machine is provision, it's not released until the end of the exp. 
+
+3. Some of the machines in speculative simulation have no tasks assigned to them because they turned on post completion of the experiment. 
+
+
+(Speculative vs Actual Machine Release Timestamp Relative to Start of The Experiment for Dynamic Scheduling)
+
+
+Static 
+139 days 
+
+Dynamic Actual
+8 days
+
+Dynamic Exp1 
+4 days
+
+Dynamic Exp2
+7 Days

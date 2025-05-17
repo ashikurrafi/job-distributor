@@ -30,12 +30,12 @@ fig, ax = plt.subplots(figsize=(14, 6))
 bar_width = 0.4
 index = range(len(df))
 
+ax.bar([i + bar_width/2 for i in index], df["scaled_avg_time"], width=bar_width, label='Average Task Runtime (Normalized w.r.t Task Count)', color='orange')
 ax.bar([i - bar_width/2 for i in index], df["count"], width=bar_width, label='Task Count', color='skyblue')
-ax.bar([i + bar_width/2 for i in index], df["scaled_avg_time"], width=bar_width, label='Scaled Avg Time (hrs)', color='orange')
 
-ax.set_title("Task Count vs Scaled Avg Runtime per Machine")
+ax.set_title("Task Count vs Average Task Runtime (Normalized) for Each Machine")
 ax.set_xlabel("Machine Hostname")
-ax.set_ylabel("Count / Scaled Runtime")
+ax.set_ylabel("Task Count")
 ax.set_xticks(index)
 ax.set_xticklabels(df["hostname"], rotation=90)
 ax.legend()

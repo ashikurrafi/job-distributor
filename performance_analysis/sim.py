@@ -83,17 +83,18 @@ last_job_completion_time_on_node = average_task_times_on_node.copy()
 # p-tasks allocated, therefore
 tasks = tasks - nodes
 count_of_tasks_on_node = [1] * nodes # each node initialized with their first job
-
-while tasks != 0:
+simultanous_nodes = [(8 if "ec" in key else 32) for key in mean_runtime_by_requester]
+print(simultanous_nodes)
+while tasks > 0:
   # Find node that finished job and is available at the earliest
   node_available_for_next_job = last_job_completion_time_on_node.index(min(last_job_completion_time_on_node))
 
   # Task counter updated
-  count_of_tasks_on_node[node_available_for_next_job] += 1
+  count_of_tasks_on_node[node_available_for_next_job] += simultanous_nodes[node_available_for_next_job]
   
   # Increment time on node
   last_job_completion_time_on_node[node_available_for_next_job] += average_task_times_on_node[node_available_for_next_job]
-  tasks -= 1
+  tasks -= simultanous_nodes[node_available_for_next_job]
 
 
 print(count_of_tasks_on_node)

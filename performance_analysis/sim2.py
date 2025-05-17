@@ -214,7 +214,16 @@ last_completion_timestamp = {
 }
 
 
+df_engagement = pd.read_csv("request_summary.csv")
+df_machine_stat = pd.read_csv("machine_completion_times.csv")
 
+for key in first_request_timestamp:
+    first_request_timestamp[key] = df_engagement[df_engagement["requested_by"] == key]["first_request_timestamp"].values[0]
+    last_completion_timestamp[key] = df_engagement[df_engagement["requested_by"] == key]["last_completion_timestamp"].values[0]
+    mean_runtime_by_requester[key] = df_machine_stat[df_machine_stat["requested_by"] == key]["mean"].values[0]
+
+
+print(mean_runtime_by_requester)
 
 # Use actual data
 node_names = list(mean_runtime_by_requester.keys())
@@ -235,6 +244,8 @@ count_of_tasks_on_node = [0] * nodes
 # Simultaneous node count
 simultanous_nodes = [(8 if "ec" in node_names[i] else 32) for i in range(len(node_names))]
 # Greedy task assignment loop
+print(simultanous_nodes)
+
 while tasks > 0:
     # Pick node that becomes available the earliest
     node = last_job_completion_time_on_node.index(min(last_job_completion_time_on_node))
@@ -247,6 +258,7 @@ while tasks > 0:
 
     # Decrement remaining tasks
     tasks -= simultanous_nodes[node]
+    # print("Node ", node_names[node], simultanous_nodes[node], last_job_completion_time_on_node[node])
 
 # Final stats
 print("Assigned Tasks per Node:")

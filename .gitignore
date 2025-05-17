@@ -1,5 +1,5 @@
 *.log
-*/venv/*
+*/venv
 */venv/
 */logs/*
 */logs/
@@ -11,3 +11,4 @@
 */data/*
 pids.json
 params.json
+venv
