@@ -165,18 +165,22 @@ def dashboard():
     <html>
     <head>
         <title>Job Dashboard</title>
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="https://cdn.datatables.net/2.3.1/css/dataTables.dataTables.min.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.datatables.net/2.3.1/js/dataTables.min.js"></script>
         <style>
             body { font-family: Arial, sans-serif; }
-            .tab { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 15px; }
+            .tab { display: flex; border-bottom: 2px solid #ddd; margin:0 30px; position:sticky; top:0; background-color:#FFF;z-index:2;}
             .tab button { background-color: #f1f1f1; border: none; padding: 10px 20px; cursor: pointer; margin-right: 5px; }
             .tab button.active { background-color: #ddd; font-weight: bold; }
-            .tabcontent { display: none; padding: 10px; }
+            .tabcontent { display: none; padding: 10px 30px; }
             .tabcontent.active { display: block; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid black; padding: 8px; text-align: left; }
+            table { width: 100%; border:1px solid #ddd; border-collapse: collapse; margin-top: 10px; }
+            th, td { padding: 8px; text-align: left; }
             th { background-color: #f2f2f2; }
+            td {border-bottom: 1px solid #f2f2f2;}
             .sort-icon {
                 cursor: pointer;
                 margin-left: 0.3em;
@@ -198,7 +202,7 @@ def dashboard():
             }
             .modal-content {
                 background-color: white;
-                margin: 10% auto;
+                margin: 5% auto;
                 padding: 20px;
                 border: 1px solid #888;
                 width: 50%;
@@ -206,6 +210,8 @@ def dashboard():
                 border-radius: 10px;
                 box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
                 font-family: Arial, sans-serif;
+                overflow-y:auto;
+                max-height:calc(100% - 20%);
             }
             .close {
                 float: right;
@@ -217,19 +223,21 @@ def dashboard():
             /* Timeline Styling */
             .timeline {
                 position: relative;
-                padding-left: 20px;
-                border-left: 3px solid #007bff;
-                margin-top: 15px;
             }
             .timeline-item {
                 position: relative;
                 padding: 10px 0;
+                border:1px solid #007bff;
+                border-left:3px solid #007bff;
+                padding-left:20px;
+                margin-bottom:5px;
+                border-radius:6px;
             }
             .timeline-item::before {
                 content: "●";
                 color: #007bff;
                 position: absolute;
-                left: -13px;
+                left: 6px;
                 top: 10px;
                 font-size: 14px;
             }
@@ -243,13 +251,13 @@ def dashboard():
                 font-weight: bold;
             }
             .stats-box {
-                position: absolute;
-                top: 183px;
-                left: 20px;
                 background-color: white;
                 border-radius: 12px;
-                padding: 15px;
-                box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+                padding: 20px 25px;
+                box-shadow: 0px 1px 15px 8px rgba(0, 0, 0, 0.08);
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
                 font-family: Arial, sans-serif;
                 width: 280px;
             }
@@ -263,7 +271,7 @@ def dashboard():
                 padding: 5px;
                 border-radius: 5px;
                 border: 1px solid #ccc;
-                margin-top: 5px;
+                margin-top: 0px;
             }
             
             .hidden {
@@ -302,7 +310,9 @@ def dashboard():
             }
             .modal-content-2 {
                 background-color: white;
-                margin: 10% auto;
+                margin: 5% auto;
+                overflow-y: auto;
+                max-height: calc(100% - 20%);
                 padding: 20px;
                 border-radius: 10px;
                 width: 60%;
@@ -323,7 +333,6 @@ def dashboard():
             .stats-table th, .stats-table td {
                 padding: 10px;
                 text-align: center;
-                border-bottom: 1px solid #000000;
             }
             .stats-table th {
                 background-color: #f2f2f2;
@@ -331,9 +340,6 @@ def dashboard():
                 font-weight: bold;
             }
             .modal-button {
-                position: absolute;
-                top: 123px;
-                right: 1174px;
                 padding: 12px 24px;
                 font-size: 16px;
                 cursor: pointer;
@@ -344,15 +350,14 @@ def dashboard():
                 width: 260px;
             }
             #chart-container {
-                width: 75%;
-                height: 365px;
-                margin: 20px 2px 20px 342px;
+                height: 420px;
+                flex: auto;
                 justify-content: center;
                 align-items: center;
-                background: white;
-                border-radius: 8px;
-                padding: 10px;
-                box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+                background-color: white;
+                border-radius: 12px;
+                padding: 15px;
+                box-shadow: 0px 1px 15px 8px rgba(0, 0, 0, 0.08);
             }
             canvas {
                 max-width: 100%;
@@ -378,8 +383,6 @@ def dashboard():
             #jobChart {
                 width: 100% !important;
                 height: 100% !important;
-                max-width: 1095px;
-                max-height: 365px;
             }
 
         </style>
@@ -531,19 +534,14 @@ def dashboard():
         </script>
     </head>
     <body>
-        <h1 style="text-align: center; font-size: 32px; font-weight: bold; color: #333; background-color: #ddd; padding: 20px; border-radius: 8px; box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);">📊 Job Distribution Dashboard 📊</h1>
-        <button style="display:none" class="modal-button" onclick="openModal()"> 
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
-                <path d="M0 0h1v15h15v1H0V0zM6 12V5h1v7H6zm4 0V3h1v9h-1zm4 0V7h1v5h-1z"/>
-            </svg>
-            Show Machine Statistics
-        </button>
+        <h1 style="text-align: center; font-size: 32px; font-weight: bold; color: #333; background-color: #FFF; padding: 20px; border-radius: 8px; margin:0;">📊 Job Distribution Dashboard 📊</h1>
+        
         <div id="statsModal" class="modal-2">
             <div class="modal-content-2">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>Machine Specific Stats</h2>
                 <table class="stats-table">
-                    <tr>
+                    <tr style="position:sticky; top:-17px;">
                         <th>Name</th>
                         <th>Instances</th>
                         <th>Jobs Done</th>
@@ -562,31 +560,43 @@ def dashboard():
                 </table>
             </div>
         </div>
-        <div class="stats-box">
-            <p><strong>Experiment ID:</strong> {{ expId }}</p>
-            <p><strong>Total Jobs:</strong> {{ total_jobs }}</p>
-            <p><strong>Total Jobs Running (SERVED):</strong> {{ total_jobs_served }}</p>
-            <p><strong>Total Jobs Completed:</strong> {{ total_jobs_completed }}</p>
-            <p><strong>Average Completion Time:</strong> {{ avg_completion_time }}</p>
-            <p><strong>Total Jobs Aborted:</strong> {{ total_jobs_aborted }}</p>
-            <p><strong>Total Jobs for Selected Interval:</strong> <span id="totalJobs"></span></p>
-            <strong><label for="machineFilter">Select Machine:</label></strong>
-            <select id="machineFilter" onchange="updateChart()">
-                <option value="all">All Machines</option>
-                {% for machine in machine_names %}
-                    <option value="{{ machine }}">{{ machine }}</option>
-                {% endfor %}
-            </select> 
-            <strong><label for="timeInterval">Select Interval:</label></strong>
-            <select id="timeInterval" onchange="updateChart()">
-                <option value="hourly">Hourly</option>
-                <option value="minutely">Minutely</option>
-                <option value="daily">Daily</option>
-            </select>
+        <div style="display:flex; gap:30px; padding:0 30px; margin-bottom:40px;">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button style="background-color: #f2f2f2; width:100%; max-width:100%; color: #000; padding: 8px 10px; box-shadow: none; border: none; border-radius: 6px;" class="modal-button" onclick="openModal()"> 
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+                        <path d="M0 0h1v15h15v1H0V0zM6 12V5h1v7H6zm4 0V3h1v9h-1zm4 0V7h1v5h-1z"/>
+                    </svg>
+                    Show Machine Statistics
+                </button>
+                <div class="stats-box">
+                    <p><strong>Experiment ID:</strong> {{ expId }}</p>
+                    <p><strong>Total Jobs:</strong> {{ total_jobs }}</p>
+                    <p><strong>Total Jobs Running (SERVED):</strong> {{ total_jobs_served }}</p>
+                    <p><strong>Total Jobs Completed:</strong> {{ total_jobs_completed }}</p>
+                    <p><strong>Average Completion Time:</strong> {{ avg_completion_time }}</p>
+                    <p><strong>Total Jobs Aborted:</strong> {{ total_jobs_aborted }}</p>
+                    <p><strong>Total Jobs for Selected Interval:</strong> <span id="totalJobs"></span></p>
+                    <strong style="margin-top:15px;"><label style="font-size:14px;" for="machineFilter">Select Machine:</label></strong>
+                    <select id="machineFilter" onchange="updateChart()">
+                        <option value="all">All Machines</option>
+                        {% for machine in machine_names %}
+                            <option value="{{ machine }}">{{ machine }}</option>
+                        {% endfor %}
+                    </select> 
+                    <strong style="margin-top:10px;"><label style="font-size:14px;" for="timeInterval">Select Interval:</label></strong>
+                    <select id="timeInterval" onchange="updateChart()">
+                        <option value="hourly">Hourly</option>
+                        <option value="minutely">Minutely</option>
+                        <option value="daily">Daily</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="chart-container">
+                <canvas id="jobChart"></canvas>
+            </div>
         </div>
-        <div id="chart-container">
-            <canvas id="jobChart"></canvas>
-        </div>
+        
         <script>
             let chart;
             function updateChart() {
@@ -650,63 +660,27 @@ def dashboard():
             <div id="{{ status }}" class="tabcontent {% if loop.first %}active{% endif %}">
                 <h2>{{ status }} Jobs</h2>
                 <!-- Unique table ID per status -->
-                <table id="{{ status|lower }}-table">
+                <table id="{{ status|lower }}-table" class="myTable">
                     <thead>
                         <tr>
                             <!-- Example: Only the icon is clickable (the <span>) -->
                             <th>
                                 ID
-                                <span class="sort-icon"
-                                      data-ascending="false"
-                                      style="font-weight: bold;"
-                                      onclick="sortTable('{{ status|lower }}-table', 0, 'number', this)">
-                                    &#8597;
-                                </span>
                             </th>
                             <th>
                                 Requested By
-                                <span class="sort-icon"
-                                      data-ascending="false"
-                                      style="font-weight: bold;"
-                                      onclick="sortTable('{{ status|lower }}-table', 1, 'string', this)">
-                                    &#8597;
-                                </span>
                             </th>
                             <th>
                                 Status
-                                <span class="sort-icon"
-                                      data-ascending="false"
-                                      style="font-weight: bold;"
-                                      onclick="sortTable('{{ status|lower }}-table', 2, 'string', this)">
-                                    &#8597;
-                                </span>
                             </th>
                             <th>
                                 Request Time (EDT)
-                                <span class="sort-icon"
-                                      data-ascending="false"
-                                      style="font-weight: bold;"
-                                      onclick="sortTable('{{ status|lower }}-table', 3, 'string', this)">
-                                    &#8597;
-                                </span>
                             </th>
                             <th>
                                 Completion Time (EDT)
-                                <span class="sort-icon"
-                                      data-ascending="false"
-                                      style="font-weight: bold;"
-                                      onclick="sortTable('{{ status|lower }}-table', 4, 'string', this)">
-                                    &#8597;
-                                </span>
                             </th>
                             <th>
                                 Required Time (Min)
-                                <span class="sort-icon"
-                                      data-ascending="false"
-                                      style="font-weight: bold;"
-                                      onclick="sortTable('{{ status|lower }}-table', 5, 'number', this)">
-                                    &#8597;
-                                </span>
                             </th>
                             <th>Job History</th>
                         </tr>
@@ -721,7 +695,7 @@ def dashboard():
                             <td>{{ format_timestamp(job.completion_timestamp - (60*60*4)) }}</td>
                             <td>{{ (job.required_time / 60) | round }}</td>
                             <td>
-                                <button onclick="showMessageModal({{ job.id }}, {{ job.message }}, {{ job.parameters }})">View Details</button>
+                                <button style="background-color: #f2f2f2; color: #000; padding: 8px 10px; box-shadow: none; border: none; border-radius: 6px;" onclick="showMessageModal({{ job.id }}, {{ job.message }}, {{ job.parameters }})">View Details</button>
                             </td>
                         </tr>
                     {% endfor %}
@@ -729,6 +703,11 @@ def dashboard():
                 </table>
             </div>
         {% endfor %}
+    <script>
+       $(document).ready(function () {
+            let tables = new DataTable('.myTable'); // Initializes ALL tables with that class
+        });
+    </script>
     </body>
     </html>
     """
