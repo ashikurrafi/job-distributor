@@ -319,6 +319,10 @@ def dashboard():
                 text-align: center;
                 box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
             }
+            table.stats-table td:first-child, table.stats-table th:first-child {
+                position: sticky;
+                left: 0;
+            }
             .close {
                 float: right;
                 font-size: 28px;
@@ -541,7 +545,7 @@ def dashboard():
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>Machine Specific Stats</h2>
                 <table class="stats-table">
-                    <tr style="position:sticky; top:-17px;">
+                    <tr style="position:sticky; top:-17px; z-index:2;">
                         <th>Name</th>
                         <th>Instances</th>
                         <th>Jobs Done</th>
