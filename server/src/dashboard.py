@@ -385,8 +385,10 @@ def dashboard():
             
             
             #jobChart {
-                width: 100% !important;
-                height: 100% !important;
+                max-width: 100%;
+                max-height: 100%;
+                width: auto !important;
+                height: auto !important;
             }
 
         </style>
