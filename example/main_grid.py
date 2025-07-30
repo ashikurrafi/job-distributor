@@ -13,11 +13,11 @@ from test import test_model
 
 # ---------------- Configuration ----------------
 device = torch.device("cpu")
-# EPOCH = [1, 2, 4, 8]
-# OPTIMIZER = ["adam", "sgd", "lbfgs"]
-# HIDDEN_LAYER_COUNT = [1, 2, 3, 4]
-# NODES_IN_HIDDEN_LAYER = [5, 10, 20, 30]
-# BATCH_SIZE = [4, 8, 16, 32, 64, 128]
+EPOCH = [1, 2, 4, 8]
+OPTIMIZER = ["adam", "sgd", "lbfgs"]
+HIDDEN_LAYER_COUNT = [1, 2, 3, 4]
+NODES_IN_HIDDEN_LAYER = [5, 10, 20, 30]
+BATCH_SIZE = [4, 8, 16, 32, 64, 128]
 
 # ---------------- Logger Setup ----------------
 LOG_DIR = "log"
