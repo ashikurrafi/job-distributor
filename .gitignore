@@ -13,3 +13,5 @@ pids.json
 params.json
 venv
 *.pyc
+train.csv
+test.csv
