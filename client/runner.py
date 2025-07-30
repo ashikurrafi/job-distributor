@@ -17,6 +17,7 @@ expId = config["expId"]
 job_server = config["job_server"]
 port = config["port"]
 run_command = config["run_command"] # list exp: python main.py
+machine_type = config["machine_type"]
 
 # ---------------- Argument Parser ----------------
 parser = argparse.ArgumentParser()
@@ -115,6 +116,9 @@ def main():
         except Exception as e:
             logger.exception(f"Unexpected error occurred: {str(e)}")
             time.sleep(3)
+        
+        if machine_type == "htc": 
+            break
 
 # ---------------- Job Status Update ----------------
 def update_status(job_id, status, message):
