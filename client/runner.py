@@ -29,7 +29,7 @@ LOG_DIR = f"{expId}/logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
 username = "user" if os.getenv('USER') or os.getenv('USERNAME') == None else os.getenv('USER') or os.getenv('USERNAME')
-runner_id = f"{username}@{socket.gethostname()}"
+runner_id = f"{username}@{socket.gethostname()}({machine_type})"
 log_path = os.path.join(LOG_DIR, f"runner_{runner_id}_{args.process_id}.log")
 
 logging.basicConfig(

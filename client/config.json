@@ -5,5 +5,5 @@
     "number_of_parallel_process": 3,
     "run_command": ["python", "main.py"],
     "machine_type": "hpc", 
-    "_comment": "Machine Types: hpc, htc, or personal"
+    "_comment": "Machine Types: hpc, htc, desktop, laptop"
 }
