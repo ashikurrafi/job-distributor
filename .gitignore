@@ -12,3 +12,4 @@
 pids.json
 params.json
 venv
+*.pyc
