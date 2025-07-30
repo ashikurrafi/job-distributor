@@ -2,11 +2,10 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
 
-BATCH_SIZE = 64
-TRAIN_SIZE = 6000
-TEST_SIZE = 1000
+TRAIN_SIZE = 60000
+TEST_SIZE = 10000
 
-def load_mnist(train_size=TRAIN_SIZE, test_size=TEST_SIZE, batch_size=BATCH_SIZE):
+def load_mnist(train_size=TRAIN_SIZE, test_size=TEST_SIZE, batch_size=32):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
