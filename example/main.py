@@ -13,9 +13,9 @@ from test import test_model
 
 # ---------------- Logger Setup ----------------
 def setup_logger(base_path):
-    log_dir = os.path.join(base_path, "log")
+    log_dir = os.path.join(base_path)
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, "single_run.log")
+    log_file = os.path.join(log_dir, "info.log")
 
     logging.basicConfig(
         level=logging.INFO,
