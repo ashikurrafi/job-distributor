@@ -1,6 +1,5 @@
 # Job Distributor
-
-A lightweight job distribution framework designed for running thousands of parameterized simulations in parallel. Ideal for research experiments where results depend on specific parameter combinations, and the goal is to identify the most effective configuration based on an objective metric (e.g., accuracy, performance, efficiency).
+Lightweight job distribution framework designed for running thousands of parameterized simulations in parallel. Ideal for research experiments where results depend on specific parameter combinations, and the goal is to identify the most effective configuration based on an objective metric (e.g., accuracy, performance, efficiency).
 
 ![Dashboard Preview](img/dashboard.png)
 
