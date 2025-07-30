@@ -93,7 +93,7 @@ def main():
 
             # Build the command
             cmd = []
-            cmd.extend(run_command) # , "--job_id", str(job_id), "--expId", str(args.expId)
+            cmd.extend(run_command)
             for key, value in params.items():
                 cmd.extend([f"--{key}", str(value)])
 
