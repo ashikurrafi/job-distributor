@@ -15,9 +15,9 @@ with open(CONFIG_PATH, "r") as f:
 exp_id = config["expId"]
 job_server = config["job_server"]
 port = config["port"]
-num_processes = config["number_of_parallel_process"]
+num_processes = config["number_of_parallel_process"] if config["machine_type"] != "htc" else 1 # htc always prefers on process per machine
 
-api_url = f"{job_server}:{port}"
+
 exp_dir = os.path.join(exp_id)
 os.makedirs(exp_dir, exist_ok=True)
 
@@ -61,7 +61,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # ---------------- Launch Runners ----------------
 logger.info(f"Starting {num_processes} runners for experiment '{exp_id}'")
-logger.info(f"API URL: {api_url}")
+
 for i in range(1, num_processes + 1):
     cmd = [
         "python", "runner.py",

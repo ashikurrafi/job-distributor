@@ -2,5 +2,8 @@
     "expId": "mnist_parameter_tune",
     "job_server": "http://localhost",
     "port": 5000,
-    "number_of_parallel_process": 3
+    "number_of_parallel_process": 3,
+    "run_command": ["python", "main.py"],
+    "machine_type": "hpc", 
+    "_comment": "Machine Types: hpc, htc, or personal"
 }

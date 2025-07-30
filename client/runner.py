@@ -7,19 +7,28 @@ import logging
 import argparse
 import signal
 import sys
+import json
+
+# ---------------Read the config-------------------
+CONFIG_PATH = "config.json"
+with open(CONFIG_PATH, "r") as f:
+    config = json.load(f)
+expId = config["expId"]
+job_server = config["job_server"]
+port = config["port"]
+run_command = config["run_command"] # list exp: python main.py
 
 # ---------------- Argument Parser ----------------
 parser = argparse.ArgumentParser()
-parser.add_argument("--api_url", type=str, default="http://127.0.0.1:5000", help="Base URL for the job server API")
 parser.add_argument("--process_id", type=int, default=0, help="Give a process id for log tracking")
-parser.add_argument("--expId", type=str, default="exp0", help="Give an exp id")
 args = parser.parse_args()
 
 # ---------------- Logger Setup ----------------
-LOG_DIR = f"{args.expId}/logs"
+LOG_DIR = f"{expId}/logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
-runner_id = f"{os.getenv('USER') or os.getenv('USERNAME')}@{socket.gethostname()}"
+username = "user" if os.getenv('USER') or os.getenv('USERNAME') == None else os.getenv('USER') or os.getenv('USERNAME')
+runner_id = f"{username}@{socket.gethostname()}"
 log_path = os.path.join(LOG_DIR, f"runner_{runner_id}_{args.process_id}.log")
 
 logging.basicConfig(
@@ -33,8 +42,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------------- Constants ----------------
-REQUEST_JOB_URL = f"{args.api_url}/request_job"
-UPDATE_JOB_URL = f"{args.api_url}/update_job_status"
+REQUEST_JOB_URL = f"{job_server}:{port}/request_job"
+UPDATE_JOB_URL = f"{job_server}:{port}/update_job_status"
 
 # Track the current child process
 current_proc = None
@@ -59,7 +68,7 @@ signal.signal(signal.SIGTERM, cleanup)
 def main():
     global current_proc
     logger.info(f"Runner started as {runner_id}_{args.process_id}")
-    logger.info(f"API URL: {args.api_url}")
+    logger.info(f"Job Server URL: {job_server}:{port}")
 
     while True:
         try:
@@ -82,10 +91,13 @@ def main():
             logger.info(f"Job {job_id} assigned with params: {params}")
 
             # Build the command
-            cmd = ["python", "simple_run.py", "--job_id", str(job_id), "--expId", str(args.expId)]
+            cmd = []
+            cmd.extend(run_command) # , "--job_id", str(job_id), "--expId", str(args.expId)
             for key, value in params.items():
                 cmd.extend([f"--{key}", str(value)])
 
+            base_path = os.path.join(os.path.expanduser("~"), "data", "raw", expId, job_id)
+            cmd.extend([f"--base_path", base_path])
             logger.info(f"Running command: {' '.join(cmd)}")
 
             current_proc = subprocess.Popen(cmd, preexec_fn=os.setsid, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
