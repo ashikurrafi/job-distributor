@@ -16,7 +16,7 @@ with open(CONFIG_PATH, "r") as f:
 expId = config["expId"]
 job_server = config["job_server"]
 port = config["port"]
-run_command = config["run_command"] # list exp: python main.py
+run_command = config["run_command"] # list, example: python main.py
 machine_type = config["machine_type"]
 
 # ---------------- Argument Parser ----------------
