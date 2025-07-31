@@ -4,8 +4,8 @@
     "host": "0.0.0.0",
     "dashboard_port": 5050,
     "server_port": 5000,
-    "timeoutLimit": 300,
-    "cleanupInterval": 600,
+    "idleTimeout": 300,
+    "abortedJobResetTimeout": 600,
     "fresh_start": false,
     "parameters": {
         "epochs": [2, 4, 8, 16],

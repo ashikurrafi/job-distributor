@@ -188,6 +188,33 @@ def update_job_status():
 
     return jsonify({"message": f"Job {job_id} updated to {status}", "job_id": job_id}), 200
 
+@app.route("/ping", methods=["POST"])
+def ping_job():
+    """Update last_ping_timestamp for a SERVED job."""
+    data = request.json or {}
+    job_id = data.get("id")
+
+    if not isinstance(job_id, int):
+        logging.warning(f"Invalid ping request: job_id={job_id}")
+        return jsonify({"error": "Invalid job_id"}), 400
+
+    with LOCK:
+        df = pd.DataFrame(load_jobs())
+
+        mask = (df["id"] == job_id) & (df["status"] == STATUS_SERVED)
+        if not mask.any():
+            return jsonify({"error": "Job not found or not in SERVED state"}), 404
+
+        idx = mask.idxmax()
+        now = time.time()
+
+        df.at[idx, "last_ping_timestamp"] = now
+
+        save_jobs(df.to_dict(orient="records"))
+
+    logging.info(f"Ping received for job {job_id}. Updated last_ping_timestamp.")
+    return jsonify({"message": f"Ping received for job {job_id}", "timestamp": now}), 200
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the Flask server")

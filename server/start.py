@@ -75,8 +75,8 @@ def main():
         f"python src/job_cleaner.py "
         f"--expId={config['expId']} "
         f"--jobDB={config['jobDB']} "
-        f"--cleanupInterval={config['cleanupInterval']} "
-        f"--timeoutLimit={config['timeoutLimit']}"
+        f"--abortedJobResetTimeout={config['abortedJobResetTimeout']} "
+        f"--idleTimeout={config['idleTimeout']}"
     )
 
     if config['fresh_start']:

@@ -29,18 +29,19 @@ def generate_csv(filename, parameters_dict):
         for combination in product(*parameters_values)
     ]
     total_jobs = len(parameters_list)
-    
+
     df = pd.DataFrame({
         "id": range(total_jobs),
         "requested_by": ["" for _ in range(total_jobs)],
         "request_timestamp": [0 for _ in range(total_jobs)],
         "completion_timestamp": [0 for _ in range(total_jobs)],
         "required_time": [0 for _ in range(total_jobs)],
+        "last_ping_timestamp": [0 for _ in range(total_jobs)],  # <- New column
         "status": ["NOT_STARTED" for _ in range(total_jobs)],
         "message": ["[]" for _ in range(total_jobs)],
         "parameters": parameters_list
     })
-    
+
     df.to_csv(filename, index=False)
     logging.info(f"CSV file '{filename}' generated with {total_jobs} jobs.")
 
