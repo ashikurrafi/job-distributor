@@ -206,7 +206,7 @@ def ping_job():
             return jsonify({"error": "Job not found or not in SERVED state"}), 404
 
         idx = mask.idxmax()
-        now = time.time()
+        now = round(time.time())
 
         df.at[idx, "last_ping_timestamp"] = now
 
