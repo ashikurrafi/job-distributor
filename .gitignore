@@ -15,3 +15,4 @@ venv
 *.pyc
 train.csv
 test.csv
+jobs.csv
