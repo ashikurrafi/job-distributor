@@ -115,9 +115,10 @@ def main():
 
             if response.status_code != 200:
                 logger.error(f"Failed to request job. Status: {response.status_code}, Msg: {response.text}")
-                time.sleep(2)
-                continue
-
+                break
+            
+            logger.info("Job assigned successfully.")
+            # Parse job information
             job_info = response.json()
             job_id = job_info["job_id"]
             params = job_info["parameters"]
@@ -152,12 +153,13 @@ def main():
             else:
                 logger.error(f"Job {job_id} failed. Error:\n{stderr}")
                 update_status(job_id, "ABORTED", f"Execution failed at {runner_id}: {stderr[:200]}")
+                time.sleep(5)  # Wait before next job request
 
             current_proc = None
 
         except Exception as e:
             logger.exception(f"Unexpected error occurred: {str(e)}")
-            time.sleep(3)
+            break
 
         if machine_type == "htc":
             break
