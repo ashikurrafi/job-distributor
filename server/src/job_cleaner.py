@@ -18,9 +18,9 @@ STATUS_SERVED = "SERVED"
 STATUS_DONE = "DONE"
 STATUS_ABORTED = "ABORTED"
 
-ABORTED_JOB_RESET_TIMEOUT = 30 * 60
-IDLE_TIMEOUT = 24 * 60 * 60
-POLLING_INTERVAL = 10  # Default polling interval
+ABORTED_JOB_RESET_TIMEOUT = 30 * 60 # ideal time out for aborted jobs
+IDLE_TIMEOUT = 60
+POLLING_INTERVAL = 60  # Default polling interval
 
 # ---------------- Setup ----------------
 
