@@ -1,5 +1,5 @@
 {
-    "expId": "mnist_parameter_tune",
+    "expId": "mnist_param_tune",
     "job_server": "http://jobdistributor.net",
     "port": 5000,
     "number_of_parallel_process": 3,
