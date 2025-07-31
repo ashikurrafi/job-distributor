@@ -65,9 +65,7 @@ logger.info(f"Starting {num_processes} runners for experiment '{exp_id}'")
 for i in range(1, num_processes + 1):
     cmd = [
         "python", "runner.py",
-        "--api_url", api_url,
-        "--process_id", str(i),
-        "--expId", exp_id
+        "--process_id", str(i)
     ]
     
     logger.info(f"Launching runner {i}: {' '.join(cmd)}")
