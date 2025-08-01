@@ -145,6 +145,14 @@ You can open the dashboard URL in any browser from any machine with internet acc
 
 ![Job Dashboard](img/dashboard.png)
 
+To monitor logs in real time, use:
+
+```bash
+tail -f mnist_param_tune/dashboard.log
+tail -f mnist_param_tune/server.log
+```
+where you can find the public url for dashboard and server. 
+
 
 
 
