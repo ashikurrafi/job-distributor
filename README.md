@@ -1,4 +1,4 @@
-# job-distributor: Lightweight Job Distribution Framework
+# job-distributor
 
 **job-distributor** is a lightweight framework for running thousands of parameterized jobs or simulations in parallel. It is designed for research experiments where outcomes depend on specific parameter combinations, and the objective is to identify the best setup based on metrics such as accuracy, performance, or efficiency.
 
