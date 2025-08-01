@@ -14,7 +14,7 @@ To use the **job-distributor** framework, follow these two main steps:
 
    The server is responsible for managing the job queue and tracking the status of each job (e.g., pending, running, completed). [click here for details](/server/README.md)
 
-2. **Configure the Client (Worker Machines)**  
+2. **Configure the Clients (Worker Machines)**  
    
    The client-side code runs on each worker machine where the actual jobs will execute. Each client contacts the server to fetch an unassigned job (such as a specific hyperparameter combination), runs the task, and then reports the result back to the server.
 
