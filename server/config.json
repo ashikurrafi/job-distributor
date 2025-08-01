@@ -7,6 +7,7 @@
     "idleTimeout": 300,
     "abortedJobResetTimeout": 600,
     "fresh_start": true,
+    "enable_ngork": true,
     "parameters": {
         "epochs": [1, 2, 4, 8, 16, 32],
         "optimizer": ["adam", "sgd", "lbfgs"],

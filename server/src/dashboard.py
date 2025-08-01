@@ -9,6 +9,7 @@ from datetime import timedelta
 import pytz
 import argparse
 import pandas as pd
+from pyngrok import ngrok
 
 app = Flask(__name__)
 
@@ -137,7 +138,7 @@ def job_stats():
 
 
 # ------------------------ DASHBOARD ROUTE ---------------------
-@app.route("/dashboard", methods=["GET"])
+@app.route("/", methods=["GET"])
 def dashboard():
     """Display job statistics and job details in an HTML page with column-based sorting icons."""
     expId = EXP_ID
@@ -736,6 +737,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the Flask Dashboard server")
     parser.add_argument("--host", default="0.0.0.0", help="IP address to bind to")
     parser.add_argument("--jobDB", default="jobs.csv", help="CSV file (<filename>.csv) placed in the same directory as server.py")
+    parser.add_argument("--enableNgrok", default=False, help="Enable ngrok for external access")
     parser.add_argument("--port", type=int, default=5050, help="Port number to listen on")
     parser.add_argument("--expId", type=str, default="sim1", help="Give an unique name")
     args = parser.parse_args()
@@ -744,6 +746,14 @@ if __name__ == "__main__":
     logging.info(f"Starting Flask Dashboard server on {args.host}:{args.port}...")
     CSV_FILE = os.path.join(BASE_DIR, args.expId, args.jobDB)
     EXP_ID = args.expId
+    
+    if args.enableNgrok:
+        logging.info("Starting ngrok tunnel...")
+        public_url = ngrok.connect(args.port)
+        print(f" >> dashboard : {public_url}")
+        logging.info(f"ngrok tunnel established at {public_url}")
+    
+    # Start the Flask app
     app.run(host=args.host, port=args.port)  
 
 # python dashboard.py --expId=sim1 --jobDB=jobs.csv --host=0.0.0.0 --timeoutLimit=5050

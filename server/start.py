@@ -59,6 +59,7 @@ def main():
         f"python src/server.py "
         f"--expId={config['expId']} "
         f"--jobDB={config['jobDB']} "
+        f"--enableNgrok={config['enable_ngork']} "
         f"--host={config['host']} "
         f"--port={config['server_port']}"
     )
@@ -67,6 +68,7 @@ def main():
         f"python src/dashboard.py "
         f"--expId={config['expId']} "
         f"--jobDB={config['jobDB']} "
+        f"--enableNgrok={config['enable_ngork']} "
         f"--host={config['host']} "
         f"--port={config['dashboard_port']}"
     )
