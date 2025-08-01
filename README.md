@@ -81,7 +81,7 @@ Update `config.json` file that contains all the necessary settings. Below is an 
 
 ## Ngrok Setup (for Local Servers)
 
-To allow remote worker machines to access a local job server, ngrok can be used to expose it over the internet.
+To allow remote worker machines to access a local job server, ngrok can be used to expose it over the internet. This is one time effort. If you've already installed it, you can skip this step.
 
 ### Step 1: Install ngrok
 
