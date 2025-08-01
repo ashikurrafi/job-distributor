@@ -122,6 +122,17 @@ To start the job server in the background:
 ```bash
 python start.py &
 ```
+### For **Windows**:
+```bash
+Start-Process python -ArgumentList "start.py"
+```
+
+
+
+
+
+
+
 
 
 
