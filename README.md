@@ -126,6 +126,25 @@ python start.py &
 ```bash
 Start-Process python -ArgumentList "start.py"
 ```
+Then you'll be able to see this texts in the terminal or shell
+```bash
+>> dashboard : NgrokTunnel: "https://039b05366555.ngrok-free.app" -> "http://localhost:5050"
+ * Serving Flask app 'dashboard'
+ * Debug mode: off
+ >> job_server : NgrokTunnel: "https://9c10a92e13eb.ngrok-free.app" -> "http://localhost:5000"
+ * Serving Flask app 'server'
+ * Debug mode: off
+```
+This output confirms that your job server and dashboard are running and publicly accessible via ngrok.
+
+The dashboard URL (e.g., https://039b05366555.ngrok-free.app) lets you monitor job progress in real time.
+
+The job server URL (e.g., https://9c10a92e13eb.ngrok-free.app) is used by worker machines (clients) to fetch and submit jobs. You'll need this url to setup the worker-machine or client side code.
+
+You can open the dashboard URL in any browser from any machine with internet access to view and manage job statuses.
+
+![Job Dashboard](img/dashboard.png)
+
 
 
 
