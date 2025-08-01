@@ -6,4 +6,131 @@
 
 To showcase how this framework works, we applied it to a classic machine learning task: hyperparameter tuning for a handwritten digit classifier using the MNIST dataset. The goal is to evaluate various combinations of hyperparameters and find the best-performing configuration. For a clearer understanding of the research task, visit: [MNIST-parameter-tuning](https://github.com/NWSL-UCF/MNIST-parameter-tuning)
 
+## Setup Overview
+
+To use the **job-distributor** framework, follow these two main steps:
+
+1. **Start the Server**  
+   The server is responsible for managing the job queue and tracking the status of each job (e.g., pending, running, completed).
+
+2. **Configure the Client (Worker Machines)**  
+   The client-side code runs on each worker machine where the actual jobs will execute. Each client contacts the server to fetch an unassigned job (such as a specific hyperparameter combination), runs the task, and then reports the result back to the server.
+
+Make sure the server is set up and running before launching any clients.
+
+---
+
+## Server Setup
+
+## Clone the Repository and Install Dependencies
+
+To get started, clone the job-distributor repository and setup virtual environment and install dependencies to your local machine:
+
+Terminal (Linux or macOS)
+```bash
+git clone https://github.com/NWSL-UCF/job-distributor.git
+cd job-distributor/server
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+For powershell (windows)
+```bash
+git clone https://github.com/NWSL-UCF/job-distributor.git
+cd job-distributor\server
+python3 -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Update `config.json` file that contains all the necessary settings. Below is an example configuration:
+
+```json
+{
+    "expId": "mnist_param_tune",
+    "jobDB": "jobs.csv",
+    "host": "localhost",
+    "dashboard_port": 5050,
+    "server_port": 5000,
+    "idleTimeout": 120,
+    "abortedJobResetTimeout": 600,
+    "fresh_start": true,
+    "enable_ngork": true,
+    "parameters": {
+        "epochs": [1, 2, 4, 8, 16, 32],
+        "optimizer": ["adam", "sgd", "lbfgs"],
+        "hidden_layers": [1, 2, 4, 8, 16],
+        "nodes_per_layer": [10, 20, 30, 40, 50],
+        "batch_size": [4, 8, 16, 32, 64, 128]
+    }
+}
+```
+
+### Configuration Fields
+
+- **`expId`**: Name of the experiment (e.g., `"mnist_param_tune"`).
+- **`jobDB`**: CSV file to store job metadata. Keep as `jobs.csv`.
+- **`host`**: Set to `localhost` if running locally, or use a public IP/domain for remote access.
+- **`dashboard_port` / `server_port`**: Ports for web dashboard and backend API. Default: 5050 / 5000.
+- **`idleTimeout`**: In seconds. Resets job to `NOT_STARTED` if client goes idle (default: 120).
+- **`abortedJobResetTimeout`**: In seconds. Time before `ABORTED` jobs are retried (default: 600).
+- **`fresh_start`**: If `true`, all job statuses will reset on startup. Set to `false` to resume from previous state.
+- **`enable_ngork`**: Set to `true` to expose your local server using ngrok (see setup below).
+
+---
+
+## Ngrok Setup (for Local Servers)
+
+To allow remote worker machines to access a local job server, ngrok can be used to expose it over the internet.
+
+### Step 1: Install ngrok
+
+**Linux:**
+```bash
+wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+unzip ngrok-stable-linux-amd64.zip
+sudo mv ngrok /usr/local/bin
+```
+
+**Windows:**
+1. Download ngrok from: https://ngrok.com/download
+2. Extract and move the binary to a convenient location (e.g., `C:\ngrok`)
+3. Optionally add the path to your system `PATH` variable
+
+### Step 2: Authenticate ngrok
+
+After creating an account on [ngrok.com](https://ngrok.com), you'll receive an auth token.
+
+**Run the following command:**
+```bash
+ngrok config add-authtoken <your_auth_token>
+```
+
+This stores your token in:
+- `~/.ngrok2/ngrok.yml` (Linux/macOS)
+- `%HOMEPATH%\.ngrok2\ngrok.yml` (Windows)
+
+Once this is done, ngrok will automatically tunnel your server when `enable_ngork` is set to `true`.
+
+---
+
+## Run the Job Server
+
+To start the job server in the background:
+
+### For **Linux/macOS**:
+```bash
+python start.py &
+```
+
+
+
+## Best Practices
+
+- Ensure the server has a **stable internet connection** during the entire experiment.
+- Use descriptive names for your experiments via `expId`.
+- Keep `jobDB` and port settings as default unless you have a specific reason to change them.
+- Use `fresh_start: false` if you want to resume an interrupted experiment.
+
+---
 
