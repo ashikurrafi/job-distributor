@@ -102,4 +102,17 @@ Job logs and output will be saved in:
 %USERPROFILE%\data\raw\<expId>\
 ```
 
+---
+
+### 6. Dashboard After Running Worker Machine
+
+Here, we ran 10 parallel process in a desktop machine and the dashboard looked like this
+../img/dashboard_after_job_assign.png
+
+and the aborted job would look like this
+../img/dashboard_after_job_aborted.png
+
+and the done job would look like this
+../img/dashboard_after_job_done.png
+
 Make sure to check this folder to analyze individual job performance or debug failed jobs.
