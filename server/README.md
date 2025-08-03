@@ -115,7 +115,7 @@ Then you'll be able to see this texts in the terminal or shell
 ```
 This output confirms that your job server and dashboard are running and publicly accessible via ngrok.
 
-The dashboard URL (e.g., https://039b05366555.ngrok-free.app) lets you monitor job progress in real time.
+The dashboard URL (e.g., https://039b05366555.ngrok-free.app) lets you monitor job progress in real time. In your case, the URL may appear differently. Each time a local service is exposed via ngrok, it generates a unique, random URL. Therefore, when accessing the dashboard or configuring a worker machine, make sure to use the correct, currently active URL. That's why you need to see the terminal or shell after starting the job-server for ngrok generated URL. 
 
 The job server URL (e.g., https://9c10a92e13eb.ngrok-free.app) is used by worker machines (clients) to fetch and submit jobs. You'll need this url to setup the worker-machine or client side code.
 
