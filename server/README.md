@@ -156,3 +156,5 @@ Remember, if you want to resume the server from its current state, set the `fres
 - Keep `jobDB` and port settings as default unless you have a specific reason to change them.
 - Use `fresh_start: false` if you want to resume an interrupted experiment.
 ---
+
+[Learn how to set up the client (Worker Machine) independently](../client/README.md)
