@@ -47,9 +47,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --------------- Constants ----------------
-REQUEST_JOB_URL = f"{job_server}:{port}/request_job"
-UPDATE_JOB_URL = f"{job_server}:{port}/update_job_status"
-PING_URL = f"{job_server}:{port}/ping"
+REQUEST_JOB_URL = f"{job_server}:{port}/request_job" if "ngrok" not in job_server else f"{job_server}/request_job"
+UPDATE_JOB_URL = f"{job_server}:{port}/update_job_status" if "ngrok" not in job_server else f"{job_server}/update_job_status"
+PING_URL = f"{job_server}:{port}/ping" if "ngrok" not in job_server else f"{job_server}/ping"
 
 # Track the current child process
 current_proc = None
