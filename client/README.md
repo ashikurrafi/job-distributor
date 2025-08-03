@@ -1,7 +1,7 @@
 
 ## Worker Machine Setup
 
-This section explains how to set up a worker machine to run atomic hyperparameter tuning jobs. In this case, we use the [MNIST-parameter-tuning](https://github.com/NWSL-UCF/MNIST-parameter-tuning) repository as the task workload.
+This section explains how to set up a worker machine to run atomic hyperparameter tuning jobs. In this case, we use the [MNIST-parameter-tuning](https://github.com/NWSL-UCF/MNIST-parameter-tuning) repository as the task workload. It's a good practice to set up the client in a separate directory from the server when running both on the same machine. This helps avoid confusion and keeps the server and client environments isolated and organized.
 
 ---
 
