@@ -138,7 +138,7 @@ Get-Content mnist_param_tune\server.log -Wait
 N.B.: You can always find the URLs for the job-server and dashboard at the beginning of the log files.
 
 ---
-## (3) Stop the Job Server
+## (4) Stop the Job Server
 
 To top the job server which is running in the background:
 
@@ -149,7 +149,7 @@ python stop.py
 Remember, if you want to resume the server from its current state, set the `fresh_start` of `config.json` property to `false`. Then restart the server. Otherwise, all previous job states, including completed and aborted ones, will be lost.
 
 ---
-## (4) Best Practices
+## (5) Best Practices
 
 - Ensure the server has a **stable internet connection** during the entire experiment.
 - Use descriptive names for your experiments via `expId`.
