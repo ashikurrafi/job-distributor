@@ -12,7 +12,7 @@ To use the **job-distributor** framework, follow these two main steps:
 
 1. **Start the Server** 
 
-   The server is responsible for managing the job queue and tracking the status of each job (e.g., pending, running, completed). [click here for details](/server/README.md)
+   The server is responsible for managing the job queue and tracking the status of each job (e.g., pending, running, completed). [Click here to learn how to set up the server independently](/server/README.md)
 
 2. **Configure the Clients (Worker Machines)**  
    
