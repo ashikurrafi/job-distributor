@@ -146,7 +146,7 @@ To top the job server which is running in the background:
 ```bash
 python stop.py 
 ```
-Remember, if you want to resume the server from its current state, set the "fresh_start" of "config.json" property to false. Then restart the server. Otherwise, all previous job states, including completed and aborted ones, will be lost.
+Remember, if you want to resume the server from its current state, set the `fresh_start` of `config.json` property to `false`. Then restart the server. Otherwise, all previous job states, including completed and aborted ones, will be lost.
 
 ---
 ## (4) Best Practices
