@@ -125,13 +125,19 @@ You can open the dashboard URL in any browser from any machine with internet acc
 
 To monitor logs in real time, use:
 
+In Linux or macOS
 ```bash
 tail -f mnist_param_tune/dashboard.log
 tail -f mnist_param_tune/server.log
 ```
-where you can find the public url for dashboard and server. 
----
+In windows
+```bash
+Get-Content mnist_param_tune\dashboard.log -Wait
+Get-Content mnist_param_tune\server.log -Wait
+```
+N.B.: You can always find the URLs for the job-server and dashboard at the beginning of the log files.
 
+---
 ## (4) Best Practices
 
 - Ensure the server has a **stable internet connection** during the entire experiment.
