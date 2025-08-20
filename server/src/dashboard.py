@@ -746,8 +746,7 @@ if __name__ == "__main__":
     logging.info(f"Starting Flask Dashboard server on {args.host}:{args.port}...")
     CSV_FILE = os.path.join(BASE_DIR, args.expId, args.jobDB)
     EXP_ID = args.expId
-    
-    if args.enableNgrok:
+    if args.enableNgrok == True:
         logging.info("Starting ngrok tunnel...")
         public_url = ngrok.connect(args.port)
         print(f" >> dashboard : {public_url}")
