@@ -195,6 +195,39 @@ def change_job_status():
         logging.error(f"Error changing job status: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/jobs_paginated", methods=["GET"])
+def get_jobs_paginated():
+    """Get jobs with pagination support."""
+    # Track API request
+    db.track_api_request("Jobs Paginated", "GET")
+    
+    try:
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 50))
+        status = request.args.get("status", None)
+        search_job_id = request.args.get("search_job_id", None)
+        
+        # Validate parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 1000:
+            per_page = 50
+        
+        result = db.get_jobs_paginated(page=page, per_page=per_page, status=status, search_job_id=search_job_id)
+        
+        # Add machine field for compatibility
+        for job in result['jobs']:
+            if not job["requested_by"] or job["requested_by"].strip() == "":
+                job["machine"] = "Unassigned"
+            else:
+                job["machine"] = job["requested_by"].split("_")[0]
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logging.error(f"Error getting paginated jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 
 
@@ -206,26 +239,29 @@ def dashboard():
     db.track_api_request("Dashboard", "GET")
     
     expId = EXP_ID
-    jobs = load_jobs()
-    total_jobs = len(jobs)
-    machine_names = sorted(set(job["machine"] for job in jobs))
-    total_jobs_served = sum(1 for job in jobs if job["status"] == STATUS_SERVED)
-    total_jobs_completed = sum(1 for job in jobs if job["status"] == STATUS_DONE)
-    total_jobs_aborted = sum(1 for job in jobs if job["status"] == STATUS_ABORTED)
-
-    machine_stats = calculate_machine_stats(jobs)
+    
+    # Use efficient data loading instead of loading all jobs
+    job_counts = db.get_job_counts_by_status()
+    total_jobs = sum(job_counts.values())
+    total_jobs_served = job_counts.get(STATUS_SERVED, 0)
+    total_jobs_completed = job_counts.get(STATUS_DONE, 0)
+    total_jobs_aborted = job_counts.get(STATUS_ABORTED, 0)
+    
+    # Get machine names efficiently (only from completed jobs for stats)
+    completed_jobs = db.get_jobs_by_status(STATUS_DONE)
+    machine_names = sorted(set(job["requested_by"].split("_")[0] if job["requested_by"] else "Unassigned" for job in completed_jobs))
+    
+    # Calculate machine stats efficiently
+    machine_stats = calculate_machine_stats(completed_jobs)
     api_stats = db.get_api_stats()
     
     # Calculate total API requests
     total_api_requests = sum(stat['request_count'] for stat in api_stats)
-        
     
-    
-    
-    
+    # Calculate average completion time efficiently
     avg_completion_time = ""
     if total_jobs_completed > 0:
-        total_time = sum(j["required_time"] for j in jobs if j["status"] == STATUS_DONE)
+        total_time = sum(j["required_time"] for j in completed_jobs)
         avg_completion_time = format_time(total_time / total_jobs_completed)
 
     # ---------------------- HTML TEMPLATE ----------------------
@@ -423,51 +459,52 @@ def dashboard():
             }
             
             .tab-button {
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                background: #f8f9fa;
                 color: #495057;
-                border: 2px solid #dee2e6;
+                border: 1px solid #dee2e6;
                 padding: 10px 18px;
                 cursor: pointer;
                 font-size: 14px;
                 font-weight: 600;
-                border-radius: 8px;
-                transition: all 0.3s ease;
+                border-radius: 6px;
+                transition: all 0.2s ease;
                 position: relative;
                 min-width: 120px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 gap: 6px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 flex: 1;
                 max-width: 150px;
             }
             
             .tab-button:hover {
-                background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                background: #e9ecef;
+                border-color: #adb5bd;
+                color: #212529;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             
             .tab-button.active {
-                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                background: #495057;
                 color: white;
-                border-color: #2c3e50;
-                transform: translateY(-2px);
-                box-shadow: 0 6px 12px rgba(44,62,80,0.3);
+                border-color: #495057;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
             }
             
             .tab-button.active::before {
                 content: '';
                 position: absolute;
-                bottom: -8px;
+                bottom: -6px;
                 left: 50%;
                 transform: translateX(-50%);
                 width: 0;
                 height: 0;
-                border-left: 8px solid transparent;
-                border-right: 8px solid transparent;
-                border-top: 8px solid #2c3e50;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid #495057;
             }
             
             .tab-button i {
@@ -475,17 +512,18 @@ def dashboard():
             }
             
             .tab-button .tab-count {
-                background: rgba(255,255,255,0.2);
-                color: inherit;
-                padding: 1px 6px;
-                border-radius: 8px;
+                background: #e9ecef;
+                color: #495057;
+                padding: 2px 6px;
+                border-radius: 4px;
                 font-size: 11px;
                 font-weight: bold;
                 margin-left: 4px;
             }
             
             .tab-button.active .tab-count {
-                background: rgba(255,255,255,0.3);
+                background: rgba(255,255,255,0.2);
+                color: white;
             }
             
             /* Notification System */
@@ -673,11 +711,8 @@ def dashboard():
             }
             
             .table-wrapper {
-                height: 100%;
+                flex: 1;
                 overflow: auto;
-                background: white;
-                border-radius: 8px;
-                border: 1px solid #dee2e6;
                 position: relative;
             }
             
@@ -745,48 +780,253 @@ def dashboard():
                 table-layout: fixed;
                 margin: 0;
                 font-size: 0.875rem;
+                background: white;
             }
             
             .myTable th {
-                background: #f2f2f2;
-                color: #333;
-                font-weight: bold;
-                padding: 8px;
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                color: #495057;
+                font-weight: 600;
+                padding: 12px 8px;
                 text-align: left;
-                border-bottom: 1px solid #ddd;
-                border-right: 1px solid #ddd;
+                border-bottom: 2px solid #dee2e6;
+                border-right: 1px solid #dee2e6;
                 position: sticky;
                 top: 0;
                 z-index: 10;
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
             
             .myTable th:last-child {
                 border-right: none;
             }
             
+            .myTable th:hover {
+                background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            }
+            
+            /* Table Container and Header Styles */
+            .table-container {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                background: white;
+                border-radius: 8px;
+                border: 1px solid #dee2e6;
+                overflow: hidden;
+            }
+            
+            .table-header {
+                background: #f8f9fa;
+                padding: 15px 20px;
+                border-bottom: 1px solid #dee2e6;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            
+            .table-title {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+            
+            .table-title h3 {
+                margin: 0;
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #333;
+            }
+            
+            .search-section {
+                display: flex;
+                align-items: center;
+            }
+            
+            .search-input-group {
+                display: flex;
+                align-items: center;
+                background: white;
+                border: 1px solid #ced4da;
+                border-radius: 6px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .search-input {
+                padding: 8px 12px;
+                border: none;
+                font-size: 0.875rem;
+                width: 200px;
+                outline: none;
+                background: transparent;
+            }
+            
+            .search-input:focus {
+                background: #f8f9fa;
+            }
+            
+            .search-btn, .clear-btn {
+                padding: 8px 12px;
+                border: none;
+                background: transparent;
+                color: #6c757d;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                border-left: 1px solid #e9ecef;
+            }
+            
+            .search-btn:hover {
+                background: #e3f2fd;
+                color: #1976d2;
+            }
+            
+            .clear-btn:hover {
+                background: #ffebee;
+                color: #d32f2f;
+            }
+            
+            .pagination-info {
+                font-size: 0.875rem;
+                color: #6c757d;
+                font-weight: 500;
+                background: #e9ecef;
+                padding: 4px 8px;
+                border-radius: 4px;
+            }
+            
+            .pagination-controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 15px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-top: 1px solid #dee2e6;
+            }
+            
+            .pagination-btn {
+                padding: 8px 12px;
+                border: 1px solid #ced4da;
+                background: white;
+                border-radius: 4px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.875rem;
+                transition: all 0.2s;
+            }
+            
+            .pagination-btn:hover:not(:disabled) {
+                background: #e9ecef;
+                border-color: #adb5bd;
+            }
+            
+            .pagination-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            
+            .page-info {
+                font-size: 0.875rem;
+                color: #6c757d;
+                font-weight: 500;
+                min-width: 80px;
+                text-align: center;
+            }
+            
+            .loading-message {
+                text-align: center;
+                padding: 40px;
+                color: #6c757d;
+                font-style: italic;
+            }
+            
+            .loading-message i {
+                margin-right: 8px;
+            }
+            
+            .empty-state {
+                text-align: center;
+                padding: 60px 20px;
+                color: #6c757d;
+                background: #f8f9fa;
+                border: 2px dashed #dee2e6;
+                border-radius: 8px;
+                margin: 20px;
+            }
+            
+            .empty-icon {
+                margin-bottom: 15px;
+            }
+            
+            .empty-icon i {
+                font-size: 3rem;
+                color: #adb5bd;
+                opacity: 0.6;
+            }
+            
+            .empty-text {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 5px;
+            }
+            
+            .empty-subtext {
+                font-size: 0.9rem;
+                color: #6c757d;
+                font-style: italic;
+            }
+            
+            .error-state {
+                background: #fff5f5;
+                border-color: #feb2b2;
+            }
+            
+            .error-state .empty-icon i {
+                color: #e53e3e;
+            }
+            
+            .error-state .empty-text {
+                color: #c53030;
+            }
+            }
+            
             .myTable td {
-                padding: 8px;
-                border-bottom: 1px solid #f2f2f2;
-                border-right: 1px solid #f2f2f2;
-                vertical-align: top;
+                padding: 10px 8px;
+                border-bottom: 1px solid #e9ecef;
+                border-right: 1px solid #e9ecef;
+                vertical-align: middle;
                 word-wrap: break-word;
                 overflow-wrap: break-word;
+                transition: all 0.2s ease;
             }
             
             .myTable td:last-child {
                 border-right: none;
             }
             
-            .myTable tr:hover {
-                background-color: #f5f5f5;
-            }
-            
             .myTable tr:nth-child(even) {
-                background-color: #f9f9f9;
+                background-color: #f8f9fa;
             }
             
-            .myTable tr:nth-child(even):hover {
-                background-color: #f5f5f5;
+            .myTable tr:nth-child(odd) {
+                background-color: white;
+            }
+            
+            .myTable tr:hover {
+                background-color: #e3f2fd;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             
             /* Fixed column widths */
@@ -809,19 +1049,27 @@ def dashboard():
             }
             
             .view-details-btn {
-                background-color: #f2f2f2;
-                color: #000;
-                padding: 8px 10px;
-                border: none;
+                background: #f8f9fa;
+                color: #495057;
+                padding: 8px;
+                border: 1px solid #dee2e6;
                 border-radius: 6px;
                 cursor: pointer;
-                font-size: 14px;
-                font-weight: normal;
-                box-shadow: none;
+                font-size: 0.9rem;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
             }
             
             .view-details-btn:hover {
-                background-color: #e6e6e6;
+                background: #e9ecef;
+                border-color: #adb5bd;
+                color: #212529;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             
             .sort-icon {
@@ -1112,7 +1360,173 @@ def dashboard():
             }
         </script>
         <script>
-            function openTab(tabName) {
+
+
+            // Pagination and Search Variables
+            let currentPages = {
+                'SERVED': 1,
+                'DONE': 1,
+                'ABORTED': 1,
+                'PENDING': 1
+            };
+            let currentSearchJobId = null;
+            let currentStatus = 'SERVED';
+
+            // Load jobs for a specific status and page
+            function loadJobs(status, page = 1, searchJobId = null) {
+                const tbody = document.getElementById(`tbody-${status}`);
+                const loadingRow = `<tr><td colspan="7" class="loading-message"><i class="fas fa-spinner fa-spin"></i> Loading jobs...</td></tr>`;
+                tbody.innerHTML = loadingRow;
+
+                const params = new URLSearchParams({
+                    page: page,
+                    per_page: 50,
+                    status: status
+                });
+
+                if (searchJobId) {
+                    params.append('search_job_id', searchJobId);
+                }
+
+                fetch(`/jobs_paginated?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="7" class="empty-state error-state">
+                                        <div class="empty-icon">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <div class="empty-text">Error Loading Jobs</div>
+                                        <div class="empty-subtext">${data.error}</div>
+                                    </td>
+                                </tr>
+                            `;
+                            return;
+                        }
+
+                        // Update pagination info
+                        document.getElementById(`page-info-${status}`).textContent = `Page ${data.current_page} of ${data.total_pages}`;
+                        document.getElementById(`prev-${status}`).disabled = data.current_page <= 1;
+                        document.getElementById(`next-${status}`).disabled = data.current_page >= data.total_pages;
+
+                        // Update pagination info for this status
+                        document.getElementById(`paginationInfo-${status}`).textContent = 
+                            `Showing ${((data.current_page - 1) * data.per_page) + 1}-${Math.min(data.current_page * data.per_page, data.total_count)} of ${data.total_count} jobs`;
+
+                        // Render jobs
+                        if (data.jobs.length === 0) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="7" class="empty-state">
+                                        <div class="empty-icon">
+                                            <i class="fas fa-database"></i>
+                                        </div>
+                                        <div class="empty-text">No jobs found</div>
+                                        <div class="empty-subtext">No ${status.toLowerCase()} jobs available</div>
+                                    </td>
+                                </tr>
+                            `;
+                            return;
+                        }
+
+                        let html = '';
+                        data.jobs.forEach(job => {
+                            const machine = job.machine || '';
+                            const requestTime = job.request_timestamp ? new Date(job.request_timestamp * 1000).toLocaleString() : '';
+                            const completionTime = job.completion_timestamp ? new Date(job.completion_timestamp * 1000).toLocaleString() : '';
+                            const duration = job.required_time ? formatTime(job.required_time) : '';
+
+                            // Escape JSON for onclick attribute
+                            const messageJson = JSON.stringify(job.message).replace(/"/g, '&quot;');
+                            const parametersJson = JSON.stringify(job.parameters).replace(/"/g, '&quot;');
+
+                            html += `
+                                <tr>
+                                    <td style="font-weight: bold;">${job.id}</td>
+                                    <td>${machine}</td>
+                                    <td data-timestamp="${job.request_timestamp || ''}">${requestTime}</td>
+                                    <td data-timestamp="${job.request_timestamp || ''}">${requestTime}</td>
+                                    <td data-timestamp="${job.completion_timestamp || ''}">${completionTime}</td>
+                                    <td>${duration}</td>
+                                    <td>
+                                        <button class="view-details-btn" onclick="showMessageModal(${job.id}, '${messageJson}', '${parametersJson}', '${job.status}')" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        tbody.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error loading jobs:', error);
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" class="empty-state error-state">
+                                    <div class="empty-icon">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </div>
+                                    <div class="empty-text">Error Loading Jobs</div>
+                                    <div class="empty-subtext">Failed to load jobs. Please try again.</div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+            }
+
+            // Change page for a specific status
+            function changePage(status, direction) {
+                const newPage = currentPages[status] + direction;
+                if (newPage >= 1) {
+                    currentPages[status] = newPage;
+                    // Get current search value for this status
+                    const searchInput = document.getElementById(`jobSearch-${status}`);
+                    const searchJobId = searchInput.value.trim() || null;
+                    loadJobs(status, newPage, searchJobId);
+                }
+            }
+
+            // Search jobs by ID for a specific tab
+            function searchJobs(status) {
+                const searchInput = document.getElementById(`jobSearch-${status}`);
+                const jobId = searchInput.value.trim();
+                
+                if (jobId === '') {
+                    clearSearch(status);
+                    return;
+                }
+
+                // Reset page to 1 for this status
+                currentPages[status] = 1;
+                
+                // Load jobs for this specific tab
+                loadJobs(status, 1, jobId);
+            }
+
+            // Clear search for a specific tab
+            function clearSearch(status) {
+                const searchInput = document.getElementById(`jobSearch-${status}`);
+                searchInput.value = '';
+                
+                // Reset page to 1 for this status
+                currentPages[status] = 1;
+                
+                // Load jobs for this specific tab
+                loadJobs(status, 1);
+            }
+
+            // Helper function to format time
+            function formatTime(seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            // Initialize jobs loading when tab is clicked
+            function openTab(event, tabName) {
                 var i, tabcontent, tablinks;
                 tabcontent = document.getElementsByClassName("tabcontent");
                 for (i = 0; i < tabcontent.length; i++) {
@@ -1124,7 +1538,33 @@ def dashboard():
                 }
                 document.getElementById(tabName).classList.add("active");
                 event.currentTarget.classList.add("active");
+                
+                // Load jobs for the selected tab
+                currentStatus = tabName;
+                // Get current search value for this status
+                const searchInput = document.getElementById(`jobSearch-${tabName}`);
+                const searchJobId = searchInput ? searchInput.value.trim() || null : null;
+                loadJobs(tabName, currentPages[tabName], searchJobId);
             }
+
+            // Load initial data when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Load jobs for all tabs initially
+                const statuses = ['SERVED', 'DONE', 'ABORTED', 'PENDING'];
+                statuses.forEach(status => {
+                    loadJobs(status, 1);
+                    
+                    // Add enter key support for each search input
+                    const searchInput = document.getElementById(`jobSearch-${status}`);
+                    if (searchInput) {
+                        searchInput.addEventListener('keypress', function(e) {
+                            if (e.key === 'Enter') {
+                                searchJobs(status);
+                            }
+                        });
+                    }
+                });
+            });
 
             function showMessageModal(jobId, message, parameters, currentStatus) {
                 const modal = document.getElementById("messageModal");
@@ -1161,22 +1601,34 @@ def dashboard():
                 toggleBtn.innerHTML = "&#9654; View Parameters"; // ➤ icon
 
                 try {
+                    // Parse parameters if it's a string
+                    let parsedParameters = parameters;
+                    if (typeof parameters === 'string') {
+                        parsedParameters = JSON.parse(parameters);
+                    }
+
                     // Show parameters table
-                    if (parameters && typeof parameters === "object") {
+                    if (parsedParameters && typeof parsedParameters === "object") {
                         const table = document.createElement("table");
                         table.innerHTML = `<tr><th>Key</th><th>Value</th></tr>`;
-                        for (let key in parameters) {
+                        for (let key in parsedParameters) {
                             const row = document.createElement("tr");
-                            row.innerHTML = `<td>${key}</td><td>${parameters[key]}</td>`;
+                            row.innerHTML = `<td>${key}</td><td>${parsedParameters[key]}</td>`;
                             table.appendChild(row);
                         }
                         parametersTable.appendChild(table);
                     }
 
-                    // Show job history (newest first)
-                    const parsedMessage = JSON.parse(JSON.stringify(message)).reverse();
+                    // Parse message if it's a string
+                    let parsedMessage = message;
+                    if (typeof message === 'string') {
+                        parsedMessage = JSON.parse(message);
+                    }
 
-                    parsedMessage.forEach(entry => {
+                    // Show job history (newest first)
+                    const reversedMessage = JSON.parse(JSON.stringify(parsedMessage)).reverse();
+
+                    reversedMessage.forEach(entry => {
                         const item = document.createElement("div");
                         item.classList.add("timeline-item");
 
@@ -1199,6 +1651,7 @@ def dashboard():
                     });
 
                 } catch (e) {
+                    console.error('Error parsing message/parameters:', e);
                     messageTimeline.innerHTML = "<p>Invalid message format</p>";
                 }
 
@@ -1525,67 +1978,89 @@ def dashboard():
                         
                         <!-- Tab Buttons -->
                         <div class="tabs">
-                            <button class="tab-button active" onclick="openTab('SERVED')">
+                            <button class="tab-button active" onclick="openTab(event, 'SERVED')">
                                 <i class="fas fa-play-circle"></i>
                                 SERVED
-                                <span class="tab-count">{{ jobs|selectattr('status', 'equalto', 'SERVED')|list|length }}</span>
+                                <span class="tab-count">{{ total_jobs_served }}</span>
                             </button>
-                            <button class="tab-button" onclick="openTab('DONE')">
+                            <button class="tab-button" onclick="openTab(event, 'DONE')">
                                 <i class="fas fa-check-circle"></i>
                                 DONE
-                                <span class="tab-count">{{ jobs|selectattr('status', 'equalto', 'DONE')|list|length }}</span>
+                                <span class="tab-count">{{ total_jobs_completed }}</span>
                             </button>
-                            <button class="tab-button" onclick="openTab('ABORTED')">
+                            <button class="tab-button" onclick="openTab(event, 'ABORTED')">
                                 <i class="fas fa-times-circle"></i>
                                 ABORTED
-                                <span class="tab-count">{{ jobs|selectattr('status', 'equalto', 'ABORTED')|list|length }}</span>
+                                <span class="tab-count">{{ total_jobs_aborted }}</span>
                             </button>
-                            <button class="tab-button" onclick="openTab('PENDING')">
+                            <button class="tab-button" onclick="openTab(event, 'PENDING')">
                                 <i class="fas fa-pause-circle"></i>
                                 PENDING
-                                <span class="tab-count">{{ jobs|selectattr('status', 'equalto', 'PENDING')|list|length }}</span>
+                                <span class="tab-count">{{ job_counts.get('PENDING', 0) }}</span>
                             </button>
                         </div>
                         
                         <!-- Tab Contents -->
                         {% for status in ['SERVED', 'DONE', 'ABORTED', 'PENDING'] %}
                             <div id="{{ status }}" class="tabcontent {% if status == 'SERVED' %}active{% endif %}">
-                                <div class="table-wrapper">
-                                    <table class="myTable">
-                                        <thead>
-                                            <tr>
-                                                <th>ID <span class="sort-icon" onclick="sortTable(this, 0, 'number')">↕</span></th>
-                                                <th>Machine <span class="sort-icon" onclick="sortTable(this, 1, 'string')">↕</span></th>
-                                                <th>Requested At <span class="sort-icon" onclick="sortTable(this, 2, 'string')">↕</span></th>
-                                                <th>Started At <span class="sort-icon" onclick="sortTable(this, 3, 'string')">↕</span></th>
-                                                <th>Completed At <span class="sort-icon" onclick="sortTable(this, 4, 'string')">↕</span></th>
-                                                <th>Duration <span class="sort-icon" onclick="sortTable(this, 5, 'string')">↕</span></th>
-                                                <th>Job History <span class="sort-icon" onclick="sortTable(this, 6, 'string')">↕</span></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                        {% for job in jobs %}
-                                            {% if job.status == status %}
-                                            <tr>
-                                                <td style="font-weight: bold;">{{ job.id }}</td>
-                                                <td>{{ job.machine or '' }}</td>
-                                                <td data-timestamp="{{ job.request_timestamp if job.request_timestamp else '' }}">{{ format_timestamp(job.request_timestamp) if job.request_timestamp else '' }}</td>
-                                                <td data-timestamp="{{ job.request_timestamp if job.request_timestamp else '' }}">{{ format_timestamp(job.request_timestamp) if job.request_timestamp else '' }}</td>
-                                                <td data-timestamp="{{ job.completion_timestamp if job.completion_timestamp else '' }}">{{ format_timestamp(job.completion_timestamp) if job.completion_timestamp else '' }}</td>
-                                                <td>{{ format_time(job.required_time) if job.required_time else '' }}</td>
-                                                <td>
-                                                    <button class="view-details-btn" onclick="showMessageModal({{ job.id }}, {{ job.message }}, {{ job.parameters }}, '{{ job.status }}')">
-                                                        <i class="fas fa-eye"></i> View Details
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            {% endif %}
-                                        {% endfor %}
-                                        </tbody>
-                                    </table>
+                                <div class="table-container">
+                                    <!-- Table Header with Search -->
+                                    <div class="table-header">
+                                        <div class="table-title">
+                                            <h3>{{ status }} Jobs</h3>
+                                            <span id="paginationInfo-{{ status }}" class="pagination-info">Loading...</span>
+                                        </div>
+                                        <div class="search-section">
+                                            <div class="search-input-group">
+                                                <input type="text" id="jobSearch-{{ status }}" placeholder="Search by Job ID..." class="search-input">
+                                                <button onclick="searchJobs('{{ status }}')" class="search-btn" title="Search">
+                                                    <i class="fas fa-search"></i>
+                                                </button>
+                                                <button onclick="clearSearch('{{ status }}')" class="clear-btn" title="Clear">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="table-wrapper">
+                                        <table class="myTable" id="table-{{ status }}">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID <span class="sort-icon" onclick="sortTable(this, 0, 'number')">↕</span></th>
+                                                    <th>Machine <span class="sort-icon" onclick="sortTable(this, 1, 'string')">↕</span></th>
+                                                    <th>Requested At <span class="sort-icon" onclick="sortTable(this, 2, 'string')">↕</span></th>
+                                                    <th>Started At <span class="sort-icon" onclick="sortTable(this, 3, 'string')">↕</span></th>
+                                                    <th>Completed At <span class="sort-icon" onclick="sortTable(this, 4, 'string')">↕</span></th>
+                                                    <th>Duration <span class="sort-icon" onclick="sortTable(this, 5, 'string')">↕</span></th>
+                                                    <th>Job History <span class="sort-icon" onclick="sortTable(this, 6, 'string')">↕</span></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tbody-{{ status }}">
+                                                <tr>
+                                                    <td colspan="7" class="loading-message">
+                                                        <i class="fas fa-spinner fa-spin"></i> Loading jobs...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Pagination Controls -->
+                                    <div class="pagination-controls">
+                                        <button id="prev-{{ status }}" onclick="changePage('{{ status }}', -1)" class="pagination-btn" disabled>
+                                            <i class="fas fa-chevron-left"></i> Previous
+                                        </button>
+                                        <span id="page-info-{{ status }}" class="page-info">Page 1</span>
+                                        <button id="next-{{ status }}" onclick="changePage('{{ status }}', 1)" class="pagination-btn">
+                                            <i class="fas fa-chevron-right"></i> Next
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         {% endfor %}
+                        
+
                     </div>
                 </div>
         
@@ -1731,22 +2206,11 @@ def dashboard():
             }
             
            $(document).ready(function () {
-                let tables = new DataTable('.myTable', {
-                    "language": {
-                        "emptyTable": "" // Remove default "No data available in table" text
-                    }
-                }); // Initializes ALL tables with that class
-                
-                // Convert timestamps to local time after table is initialized
+                // Convert timestamps to local time
                 convertTimestampsToLocal();
                 
                 // Handle watermark visibility
                 handleTableWatermarks();
-                
-                // Handle watermark visibility on search/filter
-                tables.on('search.dt', function() {
-                    setTimeout(handleTableWatermarks, 100);
-                });
             });
         </script>
     </body>
@@ -1760,8 +2224,8 @@ def dashboard():
         total_jobs_served=total_jobs_served,
         total_jobs_completed=total_jobs_completed,
         total_jobs_aborted=total_jobs_aborted,
+        job_counts=job_counts,
         avg_completion_time=avg_completion_time,
-        jobs=jobs,
         format_timestamp=format_timestamp,
         format_time=format_time,
         machine_stats=machine_stats,

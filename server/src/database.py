@@ -232,6 +232,7 @@ class JobDatabase:
             
             if row:
                 job = dict(row)
+                # Parse JSON fields
                 try:
                     job['message'] = json.loads(job['message'])
                 except json.JSONDecodeError:
@@ -242,6 +243,76 @@ class JobDatabase:
                     job['parameters'] = {}
                 return job
             return None
+
+    def get_jobs_paginated(self, page: int = 1, per_page: int = 50, status: str = None, search_job_id: str = None) -> Dict[str, Any]:
+        """
+        Get jobs with pagination support.
+        
+        Args:
+            page: Page number (1-based)
+            per_page: Number of jobs per page
+            status: Filter by status (optional)
+            search_job_id: Search by job ID (optional)
+        
+        Returns:
+            Dict with jobs, total_count, total_pages, current_page
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Build WHERE clause
+            where_conditions = []
+            params = []
+            
+            if status:
+                where_conditions.append("status = ?")
+                params.append(status)
+            
+            if search_job_id:
+                where_conditions.append("id = ?")
+                params.append(int(search_job_id))
+            
+            where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+            
+            # Get total count
+            count_query = f"SELECT COUNT(*) as count FROM jobs{where_clause}"
+            cursor.execute(count_query, params)
+            total_count = cursor.fetchone()['count']
+            
+            # Calculate pagination
+            total_pages = (total_count + per_page - 1) // per_page
+            offset = (page - 1) * per_page
+            
+            # Get jobs for current page
+            jobs_query = f"""
+                SELECT * FROM jobs{where_clause}
+                ORDER BY id
+                LIMIT ? OFFSET ?
+            """
+            cursor.execute(jobs_query, params + [per_page, offset])
+            rows = cursor.fetchall()
+            
+            jobs = []
+            for row in rows:
+                job = dict(row)
+                # Parse JSON fields
+                try:
+                    job['message'] = json.loads(job['message'])
+                except json.JSONDecodeError:
+                    job['message'] = []
+                try:
+                    job['parameters'] = json.loads(job['parameters'])
+                except json.JSONDecodeError:
+                    job['parameters'] = {}
+                jobs.append(job)
+            
+            return {
+                'jobs': jobs,
+                'total_count': total_count,
+                'total_pages': total_pages,
+                'current_page': page,
+                'per_page': per_page
+            }
     
     def request_job(self, requested_by: str) -> Optional[Dict[str, Any]]:
         """Assign a PENDING job to a requester and mark it as SERVED."""
@@ -516,12 +587,21 @@ class JobDatabase:
                 return count
     
     def get_job_counts_by_status(self) -> Dict[str, int]:
-        """Get job counts grouped by status."""
+        """Get job counts by status efficiently."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT status, COUNT(*) as count FROM jobs GROUP BY status")
+            cursor.execute("""
+                SELECT status, COUNT(*) as count 
+                FROM jobs 
+                GROUP BY status
+            """)
             rows = cursor.fetchall()
-            return {row['status']: row['count'] for row in rows}
+            
+            counts = {STATUS_PENDING: 0, STATUS_SERVED: 0, STATUS_DONE: 0, STATUS_ABORTED: 0}
+            for row in rows:
+                counts[row['status']] = row['count']
+            
+            return counts
     
     def get_jobs_by_status(self, status: str) -> List[Dict[str, Any]]:
         """Get all jobs with a specific status."""
