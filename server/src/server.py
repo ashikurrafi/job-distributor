@@ -1,19 +1,17 @@
 import time
-import threading
-import fcntl
 import logging
 import os
 from flask import Flask, jsonify, request
 from datetime import datetime
 import json
-import pandas as pd
 import argparse
 from pyngrok import ngrok
+from database import JobDatabase
 
 app = Flask(__name__)
 
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-CSV_FILE = ""
+DB_FILE = ""
 LOG_FILENAME = "server.log"
 
 def createExpBaseDirectory(args):
@@ -29,22 +27,13 @@ def setup_log(args):
 
 
 
-LOCK = threading.Lock()
+# Initialize database connection
+db = None
 
-STATUS_NOT_STARTED = "NOT_STARTED"
+STATUS_PENDING = "PENDING"
 STATUS_SERVED = "SERVED"
 STATUS_DONE = "DONE"
 STATUS_ABORTED = "ABORTED"
-
-
-def getMessageAsJSONlist(messageStr):
-    try:
-        existing_messages = json.loads(messageStr)
-        if not isinstance(existing_messages, list):
-            existing_messages = []
-    except json.JSONDecodeError:
-        existing_messages = []
-    return existing_messages
 
 def format_timestamp(timestamp):
     if timestamp < 0:
@@ -52,59 +41,12 @@ def format_timestamp(timestamp):
     """Convert timestamp to human-readable format."""
     return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S') if timestamp else "N/A"
 
-def load_jobs():
-    try:
-        with open(CSV_FILE, "r") as file:
-            fcntl.flock(file, fcntl.LOCK_SH)  # Shared (read) lock
-            df = pd.read_csv(
-                file,
-                dtype={
-                    "id": int,
-                    "request_timestamp": float,
-                    "completion_timestamp": float,
-                    "required_time": float,
-                },
-            )
-            fcntl.flock(file, fcntl.LOCK_UN)  # Unlock
-        return df.to_dict(orient="records")
-    except Exception as e:
-        logging.error(f"Error loading jobs: {e}")
-        return []
-
-def get_column_names():
-    """Return a list of column names from the CSV file (with shared lock)."""
-    try:
-        with open(CSV_FILE, "r") as file:
-            fcntl.flock(file, fcntl.LOCK_SH)
-            df = pd.read_csv(file, nrows=0)
-            fcntl.flock(file, fcntl.LOCK_UN)
-        return df.columns.tolist()
-    except Exception as e:
-        logging.error(f"Error reading CSV headers: {e}")
-        return []
-
-def save_jobs(jobs):
-    """Save jobs back to the CSV file, using the CSV’s own header order."""
-    try:
-        columns = get_column_names()
-        if not columns:
-            logging.error("No columns found in CSV — aborting save.")
-            return
-
-        df = pd.DataFrame(jobs).reindex(columns=columns).fillna("")
-
-        with open(CSV_FILE, "w", newline="") as file:
-            fcntl.flock(file, fcntl.LOCK_EX)
-            df.to_csv(file, index=False)
-            fcntl.flock(file, fcntl.LOCK_UN)
-
-        logging.info("Jobs successfully saved to CSV.")
-    except Exception as e:
-        logging.error(f"Error saving jobs: {e}")
-
 @app.route("/request_job", methods=["POST"])
 def request_job():
-    """Assign a NOT_STARTED job to a requester and mark it as SERVED (using pandas)."""
+    """Assign a PENDING job to a requester and mark it as SERVED."""
+    # Track API request
+    db.track_api_request("Job Request", "POST")
+    
     data = request.json or {}
     requested_by = data.get("requested_by")
 
@@ -112,44 +54,21 @@ def request_job():
         logging.warning("Job request failed: No requester identification provided.")
         return jsonify({"error": "Requester identification is required"}), 400
 
-    with LOCK:
-        # Load into a DataFrame
-        df = pd.DataFrame(load_jobs())
+    job = db.request_job(requested_by)
+    if not job:
+        logging.info("No PENDING jobs available.")
+        return jsonify({"error": "No available jobs"}), 404
 
-        # Find the first NOT_STARTED job
-        mask = df["status"] == STATUS_NOT_STARTED
-        if not mask.any():
-            logging.info("No NOT_STARTED jobs available.")
-            return jsonify({"error": "No available jobs"}), 404
-
-        idx = mask.idxmax()
-        timestamp = time.time()
-
-        # Update fields
-        df.at[idx, "requested_by"] = requested_by
-        df.at[idx, "status"] = STATUS_SERVED
-        df.at[idx, "request_timestamp"] = timestamp
-
-        messages = getMessageAsJSONlist(df.at[idx, "message"])
-        messages.append({
-            "reason": f"{requested_by} requests this job for execution",
-            "timestamp": timestamp
-        })
-        df.at[idx, "message"] = json.dumps(messages)
-
-        # Persist changes
-        save_jobs(df.to_dict(orient="records"))
-
-        job_id = int(df.at[idx, "id"])
-        job_parameters = json.loads(df.at[idx, "parameters"])
-
-    logging.info(f"Job {job_id} assigned to {requested_by} and marked as SERVED.")
-    return jsonify({"job_id": job_id, "parameters": job_parameters, "status": STATUS_SERVED}), 200
+    logging.info(f"Job {job['id']} assigned to {requested_by} and marked as SERVED.")
+    return jsonify({"job_id": job['id'], "parameters": job['parameters'], "status": STATUS_SERVED}), 200
 
 
 @app.route("/update_job_status", methods=["POST"])
 def update_job_status():
-    """Update job status as DONE or ABORTED (using pandas)."""
+    """Update job status as DONE or ABORTED."""
+    # Track API request
+    db.track_api_request("Job Status Update", "POST")
+    
     data = request.json or {}
     job_id = data.get("job_id")
     status = data.get("status")
@@ -159,31 +78,12 @@ def update_job_status():
         logging.warning(f"Invalid job status update request: job_id={job_id}, status={status}")
         return jsonify({"error": "Invalid job_id or status"}), 400
 
-    with LOCK:
-        df = pd.DataFrame(load_jobs())
-
-        mask = (df["id"] == job_id) & (df["status"] == STATUS_SERVED)
-        if not mask.any():
-            return jsonify({"error": "Job not found or not in SERVED status"}), 404
-
-        idx = mask.idxmax()
-        now = time.time()
-
-        df.at[idx, "status"] = status
-        df.at[idx, "completion_timestamp"] = now
-        df.at[idx, "required_time"] = now - df.at[idx, "request_timestamp"]
-
-        msgs = getMessageAsJSONlist(df.at[idx, "message"])
-        msgs.append({
-            "reason": message if message else "No reason provided",
-            "timestamp": now
-        })
-        df.at[idx, "message"] = json.dumps(msgs)
-
-        save_jobs(df.to_dict(orient="records"))
+    success = db.update_job_status(job_id, status, message)
+    if not success:
+        return jsonify({"error": "Job not found or not in SERVED status"}), 404
 
     if status == STATUS_DONE:
-        logging.info(f"Job {job_id} marked as DONE. Required time: {df.at[idx, 'required_time']} seconds.")
+        logging.info(f"Job {job_id} marked as DONE.")
     else:
         logging.info(f"Job {job_id} ABORTED. Reason: {message or 'No reason provided'}.")
 
@@ -192,6 +92,9 @@ def update_job_status():
 @app.route("/ping", methods=["POST"])
 def ping_job():
     """Update last_ping_timestamp for a SERVED job."""
+    # Track API request
+    db.track_api_request("Job Ping", "POST")
+    
     data = request.json or {}
     job_id = data.get("id")
 
@@ -199,20 +102,11 @@ def ping_job():
         logging.warning(f"Invalid ping request: job_id={job_id}")
         return jsonify({"error": "Invalid job_id"}), 400
 
-    with LOCK:
-        df = pd.DataFrame(load_jobs())
+    success = db.ping_job(job_id)
+    if not success:
+        return jsonify({"error": "Job not found or not in SERVED state"}), 404
 
-        mask = (df["id"] == job_id) & (df["status"] == STATUS_SERVED)
-        if not mask.any():
-            return jsonify({"error": "Job not found or not in SERVED state"}), 404
-
-        idx = mask.idxmax()
-        now = round(time.time())
-
-        df.at[idx, "last_ping_timestamp"] = now
-
-        save_jobs(df.to_dict(orient="records"))
-
+    now = round(time.time())
     logging.info(f"Ping received for job {job_id}. Updated last_ping_timestamp.")
     return jsonify({"message": f"Ping received for job {job_id}", "timestamp": now}), 200
 
@@ -220,7 +114,7 @@ def ping_job():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the Flask server")
     parser.add_argument("--host", default="0.0.0.0", help="IP address to bind to")
-    parser.add_argument("--jobDB", default="jobs.csv", help="CSV file (<filename>.csv) placed in the same directory as server.py")
+    parser.add_argument("--jobDB", default="jobs.db", help="SQLite database file (<filename>.db) placed in the same directory as server.py")
     parser.add_argument("--enableNgrok", default=False, help="Enable ngrok for external access")
     parser.add_argument("--port", type=int, default=5000, help="Port number to listen on")
     parser.add_argument("--expId", type=str, default="sim1", help="Give an unique name")
@@ -228,7 +122,10 @@ if __name__ == "__main__":
     createExpBaseDirectory(args)
     setup_log(args)
     logging.info(f"Starting Flask server on {args.host}:{args.port}...")
-    CSV_FILE = os.path.join(BASE_DIR, args.expId, args.jobDB)
+    DB_FILE = os.path.join(BASE_DIR, args.expId, args.jobDB)
+    
+    # Initialize database connection
+    db = JobDatabase(DB_FILE)
     
     if args.enableNgrok == True:
         logging.info("Starting ngrok tunnel...")
@@ -238,4 +135,4 @@ if __name__ == "__main__":
     app.run(host=args.host, port=args.port)  
 
 
-# python server.py --expId=sim1 --jobDB=jobs.csv --host=0.0.0.0 --timeoutLimit=5050
+# python server.py --expId=sim1 --jobDB=jobs.db --host=0.0.0.0 --port=5000

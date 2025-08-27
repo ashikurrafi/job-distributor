@@ -77,9 +77,9 @@ def ping_job(job_id, stop_event):
             if res.status_code == 200:
                 logger.info(f"Ping sent for job {job_id}")
             else:
-                logger.warning(f"Ping failed for job {job_id}: {res.status_code} {res.text}")
+                logger.warning(f"Ping failed for job {job_id}: HTTP {res.status_code} - {res.text}")
         except Exception as e:
-            logger.warning(f"Ping exception for job {job_id}: {e}")
+            logger.warning(f"Ping exception for job {job_id}: {type(e).__name__}: {e}")
         time.sleep(heartBitInterval)
 
 # --------------- Job Status Update ----------------
@@ -91,11 +91,11 @@ def update_status(job_id, status, message):
             "message": message
         })
         if res.status_code == 200:
-            logger.info(f"Job {job_id} status updated to {status}.")
+            logger.info(f"Job {job_id} status successfully updated to {status} on {runner_id}")
         else:
-            logger.warning(f"Failed to update status for job {job_id}: {res.text}")
+            logger.warning(f"Failed to update status for job {job_id} on {runner_id}: HTTP {res.status_code} - {res.text}")
     except Exception as e:
-        logger.error(f"Error while updating job status: {str(e)}")
+        logger.error(f"Error while updating job {job_id} status on {runner_id}: {type(e).__name__}: {e}")
 
 # --------------- Main Loop ----------------
 def main():
@@ -123,7 +123,7 @@ def main():
             job_id = job_info["job_id"]
             params = job_info["parameters"]
 
-            logger.info(f"Job {job_id} assigned with params: {params}")
+            logger.info(f"Job {job_id} assigned to {runner_id} with parameters: {params}")
 
             # Build the command
             cmd = list(run_command)
@@ -132,7 +132,7 @@ def main():
 
             base_path = os.path.join(os.path.expanduser("~"), "data", "raw", expId, str(job_id))
             cmd.extend(["--base_path", base_path])
-            logger.info(f"Running command: {' '.join(cmd)}")
+            logger.info(f"Executing command on {runner_id}: {' '.join(cmd)}")
 
             # Start heartbeat thread
             stop_event = threading.Event()
@@ -149,16 +149,28 @@ def main():
 
             if current_proc.returncode == 0:
                 logger.info(f"Job {job_id} completed successfully.")
-                update_status(job_id, "DONE", f"{runner_id} finished successfully.")
+                completion_message = f"Job execution completed successfully on {runner_id}. Process exited with return code 0."
+                if stdout.strip():
+                    completion_message += f" Output: {stdout.strip()[:100]}"
+                update_status(job_id, "DONE", completion_message)
             else:
                 logger.error(f"Job {job_id} failed. Error:\n{stderr}")
-                update_status(job_id, "ABORTED", f"Execution failed at {runner_id}: {stderr[:200]}")
+                error_message = f"Job execution failed on {runner_id}. Process exited with return code {current_proc.returncode}."
+                if stderr.strip():
+                    error_message += f" Error details: {stderr.strip()[:200]}"
+                else:
+                    error_message += " No error output available."
+                update_status(job_id, "ABORTED", error_message)
                 time.sleep(5)  # Wait before next job request
 
             current_proc = None
 
         except Exception as e:
             logger.exception(f"Unexpected error occurred: {str(e)}")
+            # If we have a current job, update its status to ABORTED
+            if 'job_id' in locals():
+                exception_message = f"Unexpected exception occurred on {runner_id} while processing job. Exception: {str(e)}"
+                update_status(job_id, "ABORTED", exception_message)
             break
 
         if machine_type == "htc":

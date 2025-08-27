@@ -1,13 +1,14 @@
 {
     "expId": "mnist_param_tune",
-    "jobDB": "jobs.csv",
+    "jobDB": "jobs.db",
     "host": "localhost",
     "dashboard_port": 5050,
     "server_port": 5000,
     "idleTimeout": 120,
     "abortedJobResetTimeout": 600,
     "fresh_start": true,
-    "enable_ngork": true,
+    "enable_ngork": false,
+    "status_change_pin": "1234",
     "parameters": {
         "epochs": [1, 2, 4, 8, 16, 32],
         "optimizer": ["adam", "sgd", "lbfgs"],

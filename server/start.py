@@ -82,9 +82,16 @@ def main():
     )
 
     if config['fresh_start']:
-        logging.info("Starting job database creation...")
+        logging.info("Fresh start enabled. Creating new job database...")
         subprocess.run(create_cmd, shell=True, check=True)
         logging.info("Job DB created. Launching services in parallel...")
+    else:
+        logging.info("Fresh start disabled. Loading existing job database...")
+        db_path = os.path.join(os.path.dirname(__file__), config["expId"], config["jobDB"])
+        if os.path.exists(db_path):
+            logging.info(f"Existing database found: {db_path}")
+        else:
+            logging.warning(f"No existing database found at: {db_path}")
 
     commands = {
         "server": server_cmd,

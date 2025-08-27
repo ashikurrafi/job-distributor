@@ -50,7 +50,7 @@ Update `config.json` file that contains all the necessary settings. Below is an 
 - **`jobDB`**: CSV file to store job metadata. Keep as `jobs.csv`.
 - **`host`**: Set to `localhost` if running locally, or use a public IP/domain for remote access.
 - **`dashboard_port` / `server_port`**: Ports for web dashboard and backend API. Default: 5050 / 5000.
-- **`idleTimeout`**: In seconds. Resets job to `NOT_STARTED` if client goes idle (default: 120).
+- **`idleTimeout`**: In seconds. Resets job to `PENDING` if client goes idle (default: 120).
 - **`abortedJobResetTimeout`**: In seconds. Time before `ABORTED` jobs are retried (default: 600).
 - **`fresh_start`**: If `true`, all job statuses will reset on startup. Set to `false` to resume from previous state.
 - **`enable_ngork`**: Set to `true` to expose your local server using ngrok (see setup below).
