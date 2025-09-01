@@ -1372,6 +1372,72 @@ def dashboard():
             let currentSearchJobId = null;
             let currentStatus = 'SERVED';
 
+            // Enhanced encoding with validation - Define these functions first
+            function encodeForHtmlAttribute(text) {
+                try {
+                    if (typeof text !== 'string') {
+                        text = safeStringify(text);
+                    }
+                    
+                    if (!text || text === 'null' || text === 'undefined') {
+                        return '';
+                    }
+                    
+                    // Simplified encoding - just handle the essential characters for onclick
+                    return text
+                        .replace(/"/g, '&quot;')          // Double quote
+                        .replace(/'/g, '&#39;')           // Single quote
+                        .replace(/&/g, '&amp;')           // Ampersand
+                        .replace(/</g, '&lt;')            // Less than
+                        .replace(/>/g, '&gt;');           // Greater than
+                } catch (error) {
+                    console.error('Error in encodeForHtmlAttribute:', error);
+                    return '';
+                }
+            }
+
+            function decodeFromHtmlAttribute(text) {
+                if (typeof text !== 'string') {
+                    return text;
+                }
+                return text
+                    .replace(/&quot;/g, '"')          // Double quote
+                    .replace(/&#39;/g, "'")            // Single quote
+                    .replace(/&amp;/g, '&')           // Ampersand
+                    .replace(/&lt;/g, '<')            // Less than
+                    .replace(/&gt;/g, '>');           // Greater than
+            }
+
+            function safeStringify(obj, fallback = '{}') {
+                try {
+                    return JSON.stringify(obj);
+                } catch (error) {
+                    console.error('Error stringifying object:', error);
+                    return fallback;
+                }
+            }
+
+            function safeJsonParse(jsonString, fallback = null) {
+                try {
+                    // First decode HTML entities
+                    const decoded = decodeFromHtmlAttribute(jsonString);
+                    // Then parse JSON
+                    return JSON.parse(decoded);
+                } catch (error) {
+                    console.error('JSON parsing error:', error);
+                    console.error('Original string:', jsonString);
+                    return fallback;
+                }
+            }
+
+            function formatMessageForDisplay(message) {
+                if (typeof message === 'string') {
+                    // Convert newlines to HTML line breaks
+                    return message.replace(/\\n/g, '<br>');
+                }
+                return String(message);
+            }
+
             // Load jobs for a specific status and page
             function loadJobs(status, page = 1, searchJobId = null) {
                 const tbody = document.getElementById(`tbody-${status}`);
@@ -1438,9 +1504,9 @@ def dashboard():
                             const completionTime = job.completion_timestamp ? new Date(job.completion_timestamp * 1000).toLocaleString() : '';
                             const duration = job.required_time ? formatTime(job.required_time) : '';
 
-                            // Escape JSON for onclick attribute
-                            const messageJson = JSON.stringify(job.message).replace(/"/g, '&quot;');
-                            const parametersJson = JSON.stringify(job.parameters).replace(/"/g, '&quot;');
+                            // Use comprehensive encoding for all special characters
+                            const messageJson = encodeForHtmlAttribute(job.message);
+                            const parametersJson = encodeForHtmlAttribute(job.parameters);
 
                             html += `
                                 <tr>
@@ -1451,7 +1517,7 @@ def dashboard():
                                     <td data-timestamp="${job.completion_timestamp || ''}">${completionTime}</td>
                                     <td>${duration}</td>
                                     <td>
-                                        <button class="view-details-btn" onclick="showMessageModal(${job.id}, '${messageJson}', '${parametersJson}', '${job.status}')" title="View Details">
+                                        <button class="view-details-btn" onclick="showMessageModalWithRecovery(${job.id}, '${messageJson}', '${parametersJson}', '${job.status}')" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                     </td>
@@ -1601,11 +1667,13 @@ def dashboard():
                 toggleBtn.innerHTML = "&#9654; View Parameters"; // ➤ icon
 
                 try {
-                    // Parse parameters if it's a string
-                    let parsedParameters = parameters;
-                    if (typeof parameters === 'string') {
-                        parsedParameters = JSON.parse(parameters);
-                    }
+                    // Debug: Log the raw data
+                    console.log('Raw message:', message);
+                    console.log('Raw parameters:', parameters);
+                    
+                    // Parse parameters using safe JSON parsing
+                    let parsedParameters = safeJsonParse(parameters, {});
+                    console.log('Parsed parameters:', parsedParameters);
 
                     // Show parameters table
                     if (parsedParameters && typeof parsedParameters === "object") {
@@ -1619,11 +1687,9 @@ def dashboard():
                         parametersTable.appendChild(table);
                     }
 
-                    // Parse message if it's a string
-                    let parsedMessage = message;
-                    if (typeof message === 'string') {
-                        parsedMessage = JSON.parse(message);
-                    }
+                    // Parse message using safe JSON parsing
+                    let parsedMessage = safeJsonParse(message, []);
+                    console.log('Parsed message:', parsedMessage);
 
                     // Show job history (newest first)
                     const reversedMessage = JSON.parse(JSON.stringify(parsedMessage)).reverse();
@@ -1644,7 +1710,7 @@ def dashboard():
                         });
 
                         item.innerHTML = `
-                            <div class="message">${entry.reason}</div>
+                            <div class="message">${formatMessageForDisplay(entry.reason)}</div>
                             <div class="timestamp">${timestamp}</div>
                         `;
                         messageTimeline.appendChild(item);
@@ -1819,6 +1885,54 @@ def dashboard():
 
                 // Re-insert sorted rows into the table
                 rows.forEach(row => tbody.appendChild(row));
+            }
+
+            // Enhanced error handling and validation
+            function validateJobData(job) {
+                if (!job || typeof job !== 'object') {
+                    console.error('Invalid job data:', job);
+                    return false;
+                }
+                
+                if (!job.id || !job.status) {
+                    console.error('Job missing required fields:', job);
+                    return false;
+                }
+                
+                return true;
+            }
+
+
+
+            // Comprehensive error recovery for message modal
+            function showMessageModalWithRecovery(jobId, message, parameters, currentStatus) {
+                try {
+                    showMessageModal(jobId, message, parameters, currentStatus);
+                } catch (error) {
+                    console.error('Error in showMessageModal, attempting recovery:', error);
+                    
+                    // Fallback: show basic information without parsing
+                    const modal = document.getElementById("messageModal");
+                    const jobIdSpan = document.getElementById("jobId");
+                    const messageTimeline = document.getElementById("messageTimeline");
+                    
+                    if (modal && jobIdSpan && messageTimeline) {
+                        jobIdSpan.textContent = jobId;
+                        messageTimeline.innerHTML = `
+                            <div class="timeline-item">
+                                <div class="message">Job ID: ${jobId}</div>
+                                <div class="timestamp">Status: ${currentStatus}</div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="message">⚠️ Error displaying job details</div>
+                                <div class="timestamp">Please check console for details</div>
+                            </div>
+                        `;
+                        modal.style.display = "block";
+                    } else {
+                        alert(`Error displaying job ${jobId}. Please check console for details.`);
+                    }
+                }
             }
         </script>
     </head>
