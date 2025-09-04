@@ -1375,21 +1375,31 @@ def dashboard():
             // Enhanced encoding with validation - Define these functions first
             function encodeForHtmlAttribute(text) {
                 try {
+                    console.log('encodeForHtmlAttribute input:', text);
+                    console.log('encodeForHtmlAttribute input type:', typeof text);
+                    
                     if (typeof text !== 'string') {
                         text = safeStringify(text);
+                        console.log('After safeStringify:', text);
                     }
                     
                     if (!text || text === 'null' || text === 'undefined') {
+                        console.log('Empty/null/undefined, returning empty string');
                         return '';
                     }
                     
-                    // Simplified encoding - just handle the essential characters for onclick
-                    return text
+                    // Handle essential characters for onclick + preserve newlines
+                    const result = text
                         .replace(/"/g, '&quot;')          // Double quote
                         .replace(/'/g, '&#39;')           // Single quote
                         .replace(/&/g, '&amp;')           // Ampersand
                         .replace(/</g, '&lt;')            // Less than
-                        .replace(/>/g, '&gt;');           // Greater than
+                        .replace(/>/g, '&gt;')            // Greater than
+                        .replace(/\\n/g, '&#10;')          // Newline
+                        .replace(/\\r/g, '&#13;');         // Carriage return
+                    
+                    console.log('encodeForHtmlAttribute result:', result);
+                    return result;
                 } catch (error) {
                     console.error('Error in encodeForHtmlAttribute:', error);
                     return '';
@@ -1397,15 +1407,25 @@ def dashboard():
             }
 
             function decodeFromHtmlAttribute(text) {
+                console.log('decodeFromHtmlAttribute input:', text);
+                console.log('decodeFromHtmlAttribute input type:', typeof text);
+                
                 if (typeof text !== 'string') {
+                    console.log('Not a string, returning as-is');
                     return text;
                 }
-                return text
+                
+                const result = text
                     .replace(/&quot;/g, '"')          // Double quote
                     .replace(/&#39;/g, "'")            // Single quote
                     .replace(/&amp;/g, '&')           // Ampersand
                     .replace(/&lt;/g, '<')            // Less than
-                    .replace(/&gt;/g, '>');           // Greater than
+                    .replace(/&gt;/g, '>')            // Greater than
+                    .replace(/&#10;/g, '\\n')          // Newline
+                    .replace(/&#13;/g, '\\r');         // Carriage return
+                
+                console.log('decodeFromHtmlAttribute result:', result);
+                return result;
             }
 
             function safeStringify(obj, fallback = '{}') {
@@ -1419,10 +1439,25 @@ def dashboard():
 
             function safeJsonParse(jsonString, fallback = null) {
                 try {
+                    console.log('safeJsonParse input:', jsonString);
+                    console.log('safeJsonParse input type:', typeof jsonString);
+                    
                     // First decode HTML entities
                     const decoded = decodeFromHtmlAttribute(jsonString);
+                    console.log('After decodeFromHtmlAttribute:', decoded);
+                    
+                    // Clean up control characters that break JSON parsing
+                    const cleaned = decoded
+                        .replace(/\\n/g, '\\\\n')      // Escape newlines for JSON
+                        .replace(/\\r/g, '\\\\r')      // Escape carriage returns for JSON
+                        .replace(/\\t/g, '\\\\t');     // Escape tabs for JSON
+                    
+                    console.log('After cleaning control characters:', cleaned);
+                    
                     // Then parse JSON
-                    return JSON.parse(decoded);
+                    const result = JSON.parse(cleaned);
+                    console.log('After JSON.parse:', result);
+                    return result;
                 } catch (error) {
                     console.error('JSON parsing error:', error);
                     console.error('Original string:', jsonString);
