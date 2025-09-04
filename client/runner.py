@@ -149,15 +149,13 @@ def main():
 
             if current_proc.returncode == 0:
                 logger.info(f"Job {job_id} completed successfully.")
-                completion_message = f"Job execution completed successfully on {runner_id}. Process exited with return code 0."
-                if stdout.strip():
-                    completion_message += f" Output: {stdout.strip()[:100]}"
+                completion_message = f"Job execution completed successfully on {runner_id}."
                 update_status(job_id, "DONE", completion_message)
             else:
                 logger.error(f"Job {job_id} failed. Error:\n{stderr}")
                 error_message = f"Job execution failed on {runner_id}. Process exited with return code {current_proc.returncode}."
                 if stderr.strip():
-                    error_message += f" Error details: {stderr.strip()[:200]}"
+                    error_message += f" Error details: {stderr.strip()}"
                 else:
                     error_message += " No error output available."
                 update_status(job_id, "ABORTED", error_message)
