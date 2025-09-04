@@ -152,16 +152,34 @@ def main():
                 completion_message = f"Job execution completed successfully on {runner_id}."
                 update_status(job_id, "DONE", completion_message)
             else:
-                logger.error(f"Job {job_id} failed. Error:\n{stderr}")
+                # Log the full output for debugging
+                logger.error(f"Job {job_id} failed with return code {current_proc.returncode}")
+                logger.error(f"STDOUT:\n{stdout}")
+                logger.error(f"STDERR:\n{stderr}")
+                
+                # Create a cleaner error message for status update
                 error_message = f"Job execution failed on {runner_id}. Process exited with return code {current_proc.returncode}."
-                if stderr.strip():
-                    error_message += f" Error details: {stderr.strip()}"
+                
+                # Add specific error handling based on return code
+                if current_proc.returncode == -9:
+                    error_message += " Process was killed (likely due to memory/time limits)."
+                elif current_proc.returncode == -1:
+                    error_message += " Process was terminated by signal."
+                elif current_proc.returncode > 0:
+                    error_message += f" Process exited with error code {current_proc.returncode}."
+                
+                # Only add stderr if it contains actual error messages (not just INFO logs)
+                if stderr.strip() and any(keyword in stderr.lower() for keyword in ['error', 'exception', 'failed', 'fatal']):
+                    error_message += f" Error details: {stderr}"
+                elif stdout.strip() and any(keyword in stdout.lower() for keyword in ['error', 'exception', 'failed', 'fatal']):
+                    error_message += f" Error details: {stdout}"
                 else:
-                    error_message += " No error output available."
+                    error_message += " Check logs for detailed output."
+                
                 update_status(job_id, "ABORTED", error_message)
-                time.sleep(5)  # Wait before next job request
-
+            
             current_proc = None
+            time.sleep(5)  # Wait before next job request
 
         except Exception as e:
             logger.exception(f"Unexpected error occurred: {str(e)}")
