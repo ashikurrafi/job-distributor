@@ -6,9 +6,7 @@
 
 Watch the demo video to see the job-distributor framework in action:
 
-[![Demo Video](https://img.youtube.com/vi/9QMKXZAqZcQ/0.jpg)](https://youtu.be/9QMKXZAqZcQ)
-
-*Click the thumbnail above to watch the demo video on YouTube.*
+![Demo Video](img/jd_demo.gif)
 
 ## Example Use Case: MNIST Hyperparameter Tuning
 
