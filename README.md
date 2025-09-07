@@ -6,7 +6,9 @@
 
 Watch the demo video to see the job-distributor framework in action:
 
-![Demo Video](img/jd_demo.gif)
+<div align="center">
+  <img src="img/jd_demo.gif" alt="Demo Video">
+</div>
 
 ## Example Use Case: MNIST Hyperparameter Tuning
 
