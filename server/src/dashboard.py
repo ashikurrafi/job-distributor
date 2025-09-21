@@ -4,11 +4,98 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytz
 from database import JobDatabase
 from flask import Flask, jsonify, render_template_string, request
-from pyngrok import ngrok
+
+# Load .env if available (place .env in the server project root)
+
+
+def _load_dotenv():
+    try:
+        from dotenv import load_dotenv
+
+        # BASE_DIR here is parent of src, so .env in that folder
+        dotenv_path = os.path.join(BASE_DIR, ".env")
+        load_dotenv(dotenv_path)
+        logging.info(f"Loaded .env from {dotenv_path}")
+    except Exception:
+        # dotenv is optional; ignore if not installed
+        pass
+
+
+def _parse_ngrok_yml_for_token(path: str) -> str | None:
+    try:
+        import yaml  # optional, but more robust
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+            token = data.get("authtoken") or data.get("auth_token")
+            if token and isinstance(token, str) and set(token) != {"*"}:
+                return token.strip()
+    except ImportError:
+        # Fallback to simple line parsing if PyYAML isn't installed
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if "authtoken" in line:
+                        parts = line.split(":", 1)
+                        if len(parts) == 2:
+                            token = parts[1].strip().strip(' "\'')
+                            if token and set(token) != {"*"}:
+                                return token
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return None
+
+
+def _find_ngrok_token_from_yml() -> str | None:
+    # Respect NGROK_CONFIG if set
+    cfg_env = os.getenv("NGROK_CONFIG")
+    if cfg_env and os.path.exists(cfg_env):
+        token = _parse_ngrok_yml_for_token(cfg_env)
+        if token:
+            return token
+
+    # Typical paths (v3 and legacy v2)
+    candidates = []
+    if os.name == "nt":
+        local_app = os.environ.get("LOCALAPPDATA")
+        user_profile = os.environ.get(
+            "USERPROFILE") or os.environ.get("HOMEPATH")
+        if local_app:
+            candidates.append(os.path.join(
+                local_app, "ngrok", "ngrok.yml"))      # v3
+        if user_profile:
+            candidates.append(os.path.join(
+                user_profile, ".ngrok2", "ngrok.yml"))  # v2
+    else:
+        home = os.path.expanduser("~")
+        candidates.append(os.path.join(
+            home, ".config", "ngrok", "ngrok.yml"))    # v3
+        candidates.append(os.path.join(
+            home, ".ngrok2", "ngrok.yml"))             # v2
+
+    for p in candidates:
+        if os.path.exists(p):
+            token = _parse_ngrok_yml_for_token(p)
+            if token:
+                logging.info(f"ngrok token loaded from {p}")
+                return token
+    return None
+
+
+def _get_ngrok_token() -> str | None:
+    # 1) .env (if available), 2) environment variables, 3) YAML
+    _load_dotenv()
+    token = os.getenv("NGROK_AUTHTOKEN") or os.getenv("NGROK_TOKEN")
+    if token:
+        return token.strip()
+    return _find_ngrok_token_from_yml()
+
 
 app = Flask(__name__)
 
@@ -79,7 +166,12 @@ def load_jobs():
 
 def format_timestamp(timestamp):
     """Convert a Unix timestamp to human-readable format using client's local timezone."""
-    if timestamp < 0 or not timestamp:
+    if not timestamp:
+        return "N/A"
+    try:
+        if timestamp < 0:
+            return "N/A"
+    except TypeError:
         return "N/A"
     # Return the raw timestamp for client-side formatting
     return timestamp
@@ -153,6 +245,8 @@ def job_stats():
                 job_counts[hour] += 1
                 total_jobs_completed += 1
     else:
+        if not filtered_jobs:
+            return jsonify({"labels": [], "values": [], "total_jobs": 0, "timestamps": True})
         first_day = min(job["completion_timestamp"] for job in filtered_jobs)
         days_elapsed = int((now - first_day) // 86400 + 1)
         # Return timestamps for client-side formatting
@@ -290,6 +384,7 @@ def dashboard():
         avg_completion_time = format_time(total_time / total_jobs_completed)
 
     # ---------------------- HTML TEMPLATE ----------------------
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -2416,7 +2511,7 @@ if __name__ == "__main__":
                         help="IP address to bind to")
     parser.add_argument("--jobDB", default="jobs.db",
                         help="SQLite database file (<filename>.db) placed in the same directory as server.py")
-    parser.add_argument("--enableNgrok", default=False,
+    parser.add_argument("--enableNgrok", action="store_true",
                         help="Enable ngrok for external access")
     parser.add_argument("--port", type=int, default=5050,
                         help="Port number to listen on")
@@ -2433,11 +2528,23 @@ if __name__ == "__main__":
     # Initialize database connection
     db = JobDatabase(DB_FILE)
 
-    if args.enableNgrok == "True" or True:
-        logging.info("Starting ngrok tunnel...")
-        public_url = ngrok.connect(args.port)
-        print(f" >> dashboard : {public_url}")
-        logging.info(f"ngrok tunnel established at {public_url}")
+    # Start ngrok only if requested and authtoken is set
+    if args.enableNgrok:
+        # token = os.getenv("NGROK_AUTHTOKEN") or os.getenv("NGROK_TOKEN")
+        token = _get_ngrok_token()
+
+        if not token:
+            logging.warning(
+                "enableNgrok=True but NGROK_AUTHTOKEN is not set. Skipping ngrok.")
+        else:
+            try:
+                from pyngrok import ngrok
+                ngrok.set_auth_token(token)
+                public_url = ngrok.connect(args.port).public_url
+                print(f" >> dashboard : {public_url}")
+                logging.info(f"ngrok tunnel established at {public_url}")
+            except Exception as e:
+                logging.error(f"Failed to start ngrok: {e}")
 
     # Start the Flask app
     app.run(host=args.host, port=args.port)
