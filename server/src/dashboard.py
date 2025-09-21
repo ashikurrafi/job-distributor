@@ -1,14 +1,14 @@
+import argparse
+import json
 import logging
 import os
-import json
-from datetime import datetime
-from flask import Flask, render_template_string, jsonify, request
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
+
 import pytz
-import argparse
-from pyngrok import ngrok
 from database import JobDatabase
+from flask import Flask, jsonify, render_template_string, request
+from pyngrok import ngrok
 
 app = Flask(__name__)
 
@@ -17,8 +17,11 @@ BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DB_FILE = ""
 LOG_FILENAME = "dashboard.log"
 EXP_ID = "sim100"
+
+
 def createExpBaseDirectory(args):
     os.makedirs(os.path.join(BASE_DIR, args.expId), exist_ok=True)
+
 
 def setup_log(args):
     LOG_FILE = os.path.join(BASE_DIR, args.expId, LOG_FILENAME)
@@ -27,6 +30,7 @@ def setup_log(args):
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
+
 
 STATUS_PENDING = "PENDING"
 STATUS_SERVED = "SERVED"
@@ -37,6 +41,8 @@ STATUS_ABORTED = "ABORTED"
 db = None
 
 # Load configuration
+
+
 def load_config():
     """Load configuration from config.json"""
     config_path = os.path.join(BASE_DIR, "config.json")
@@ -47,25 +53,29 @@ def load_config():
         logging.error(f"Error loading config: {e}")
         return {"status_change_pin": "1234"}  # Default fallback
 
+
 config = load_config()
 
 # --------------------- HELPER FUNCTIONS -----------------------
+
+
 def load_jobs():
     """Load jobs from the SQLite database."""
     try:
         jobs = db.get_all_jobs()
-        
+
         # Add machine field for compatibility
         for job in jobs:
             if not job["requested_by"] or job["requested_by"].strip() == "":
                 job["machine"] = "Unassigned"
             else:
                 job["machine"] = job["requested_by"].split("_")[0]
-        
+
         return jobs
     except Exception as e:
         logging.error(f"Error loading jobs from database: {e}")
         return []
+
 
 def format_timestamp(timestamp):
     """Convert a Unix timestamp to human-readable format using client's local timezone."""
@@ -74,36 +84,45 @@ def format_timestamp(timestamp):
     # Return the raw timestamp for client-side formatting
     return timestamp
 
+
 def format_time(seconds):
     """Convert minutes to hh:mm:ss format."""
     return str(timedelta(seconds=round(seconds)))
 
+
 def calculate_machine_stats(jobs):
     """Calculate statistics for each machine group."""
-    machine_stats = defaultdict(lambda: {"count": 0, "total_time": 0, "instances": set()})
-    total_completed = len([job for job in jobs if job["status"] == STATUS_DONE])
-    
+    machine_stats = defaultdict(
+        lambda: {"count": 0, "total_time": 0, "instances": set()})
+    total_completed = len(
+        [job for job in jobs if job["status"] == STATUS_DONE])
+
     for job in jobs:
         if job["status"] == STATUS_DONE:
-            machine_name = job["requested_by"].split("_")[0]  # Extract machine prefix
+            machine_name = job["requested_by"].split(
+                "_")[0]  # Extract machine prefix
             machine_stats[machine_name]["count"] += 1
             machine_stats[machine_name]["total_time"] += job["required_time"]
             machine_stats[machine_name]["instances"].add(job["requested_by"])
-    
+
     for machine, data in machine_stats.items():
-        data["average_time"] = format_time((data["total_time"] / data["count"]) if data["count"] else 0)
-        data["percentage"] = (data["count"] / total_completed * 100) if total_completed else 0
+        data["average_time"] = format_time(
+            (data["total_time"] / data["count"]) if data["count"] else 0)
+        data["percentage"] = (
+            data["count"] / total_completed * 100) if total_completed else 0
         data["percentage"] = round(data["percentage"], 2)
         data["instance_count"] = len(data["instances"])
-    
+
     return machine_stats
 
-# ------------------------- JOB STATISTICS --------------------- 
+# ------------------------- JOB STATISTICS ---------------------
+
+
 @app.route("/job_stats", methods=["GET"])
 def job_stats():
     # Track API request
     db.track_api_request("Job Statistics", "GET")
-    
+
     jobs = load_jobs()
     interval = request.args.get("interval", "hourly")
     machine = request.args.get("machine", "all")
@@ -112,8 +131,9 @@ def job_stats():
     job_counts = defaultdict(int)
     total_jobs_completed = 0
 
-    filtered_jobs = [job for job in jobs if job["status"] == STATUS_DONE and (machine == "all" or job["machine"] == machine)]
-    
+    filtered_jobs = [job for job in jobs if job["status"] == STATUS_DONE and (
+        machine == "all" or job["machine"] == machine)]
+
     if interval == "minutely":
         start_time = now - 1800
         # Return timestamps for client-side formatting
@@ -145,90 +165,94 @@ def job_stats():
     y_values = [job_counts[i] for i in range(len(x_labels))]
     return jsonify({"labels": x_labels, "values": y_values, "total_jobs": total_jobs_completed, "timestamps": True})
 
+
 @app.route("/api_stats", methods=["GET"])
 def api_stats():
     """Return API statistics in JSON format."""
     # Track API request
     db.track_api_request("API Statistics", "GET")
-    
+
     stats = db.get_api_stats()
     return jsonify({"api_stats": stats})
+
 
 @app.route("/database_info", methods=["GET"])
 def get_database_info():
     """Get database information including indexes and table sizes."""
     # Track API request
     db.track_api_request("Database Info", "GET")
-    
+
     info = db.get_database_info()
     return jsonify(info)
+
 
 @app.route("/change_job_status", methods=["POST"])
 def change_job_status():
     """Change job status for DONE, ABORTED, or PENDING jobs."""
     # Track API request
     db.track_api_request("Change Job Status", "POST")
-    
+
     try:
         data = request.get_json()
         job_id = data.get('job_id')
         new_status = data.get('new_status')
         reason = data.get('reason', '')
         pin = data.get('pin', '')
-        
+
         if job_id is None or new_status is None:
             return jsonify({"success": False, "error": "Missing job_id or new_status"}), 400
-        
+
         # Validate PIN
-        config_pin = config.get('status_change_pin', '1234')  # Default fallback
+        config_pin = config.get('status_change_pin',
+                                '1234')  # Default fallback
         if pin != config_pin:
             return jsonify({"success": False, "error": "Invalid PIN"}), 401
-        
+
         success = db.change_job_status(job_id, new_status, reason)
-        
+
         if success:
             return jsonify({"success": True, "message": f"Job {job_id} status changed to {new_status}"})
         else:
             return jsonify({"success": False, "error": "Failed to change job status"}), 400
-            
+
     except Exception as e:
         logging.error(f"Error changing job status: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/jobs_paginated", methods=["GET"])
 def get_jobs_paginated():
     """Get jobs with pagination support."""
     # Track API request
     db.track_api_request("Jobs Paginated", "GET")
-    
+
     try:
         page = int(request.args.get("page", 1))
         per_page = int(request.args.get("per_page", 50))
         status = request.args.get("status", None)
         search_job_id = request.args.get("search_job_id", None)
-        
+
         # Validate parameters
         if page < 1:
             page = 1
         if per_page < 1 or per_page > 1000:
             per_page = 50
-        
-        result = db.get_jobs_paginated(page=page, per_page=per_page, status=status, search_job_id=search_job_id)
-        
+
+        result = db.get_jobs_paginated(
+            page=page, per_page=per_page, status=status, search_job_id=search_job_id)
+
         # Add machine field for compatibility
         for job in result['jobs']:
             if not job["requested_by"] or job["requested_by"].strip() == "":
                 job["machine"] = "Unassigned"
             else:
                 job["machine"] = job["requested_by"].split("_")[0]
-        
+
         return jsonify(result)
-        
+
     except Exception as e:
         logging.error(f"Error getting paginated jobs: {e}")
         return jsonify({"error": str(e)}), 500
-
-
 
 
 # ------------------------ DASHBOARD ROUTE ---------------------
@@ -237,27 +261,28 @@ def dashboard():
     """Display job statistics and job details in an HTML page with column-based sorting icons."""
     # Track API request
     db.track_api_request("Dashboard", "GET")
-    
+
     expId = EXP_ID
-    
+
     # Use efficient data loading instead of loading all jobs
     job_counts = db.get_job_counts_by_status()
     total_jobs = sum(job_counts.values())
     total_jobs_served = job_counts.get(STATUS_SERVED, 0)
     total_jobs_completed = job_counts.get(STATUS_DONE, 0)
     total_jobs_aborted = job_counts.get(STATUS_ABORTED, 0)
-    
+
     # Get machine names efficiently (only from completed jobs for stats)
     completed_jobs = db.get_jobs_by_status(STATUS_DONE)
-    machine_names = sorted(set(job["requested_by"].split("_")[0] if job["requested_by"] else "Unassigned" for job in completed_jobs))
-    
+    machine_names = sorted(set(job["requested_by"].split(
+        "_")[0] if job["requested_by"] else "Unassigned" for job in completed_jobs))
+
     # Calculate machine stats efficiently
     machine_stats = calculate_machine_stats(completed_jobs)
     api_stats = db.get_api_stats()
-    
+
     # Calculate total API requests
     total_api_requests = sum(stat['request_count'] for stat in api_stats)
-    
+
     # Calculate average completion time efficiently
     avg_completion_time = ""
     if total_jobs_completed > 0:
@@ -1800,7 +1825,7 @@ def dashboard():
                     return;
                 }
                 
-                if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+                if (pin.length !== 4 || !/^'\'d{4}$/.test(pin)) {
                     showNotification("PIN must be exactly 4 digits", "warning");
                     return;
                 }
@@ -2368,7 +2393,7 @@ def dashboard():
 
     return render_template_string(
         html_template,
-        expId = expId,
+        expId=expId,
         total_jobs=total_jobs,
         total_jobs_served=total_jobs_served,
         total_jobs_completed=total_jobs_completed,
@@ -2383,30 +2408,38 @@ def dashboard():
         total_api_requests=total_api_requests
     )
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Start the Flask Dashboard server")
-    parser.add_argument("--host", default="0.0.0.0", help="IP address to bind to")
-    parser.add_argument("--jobDB", default="jobs.db", help="SQLite database file (<filename>.db) placed in the same directory as server.py")
-    parser.add_argument("--enableNgrok", default=False, help="Enable ngrok for external access")
-    parser.add_argument("--port", type=int, default=5050, help="Port number to listen on")
-    parser.add_argument("--expId", type=str, default="sim1", help="Give an unique name")
+    parser = argparse.ArgumentParser(
+        description="Start the Flask Dashboard server")
+    parser.add_argument("--host", default="0.0.0.0",
+                        help="IP address to bind to")
+    parser.add_argument("--jobDB", default="jobs.db",
+                        help="SQLite database file (<filename>.db) placed in the same directory as server.py")
+    parser.add_argument("--enableNgrok", default=False,
+                        help="Enable ngrok for external access")
+    parser.add_argument("--port", type=int, default=5050,
+                        help="Port number to listen on")
+    parser.add_argument("--expId", type=str, default="sim1",
+                        help="Give an unique name")
     args = parser.parse_args()
     createExpBaseDirectory(args)
     setup_log(args)
-    logging.info(f"Starting Flask Dashboard server on {args.host}:{args.port}...")
+    logging.info(
+        f"Starting Flask Dashboard server on {args.host}:{args.port}...")
     DB_FILE = os.path.join(BASE_DIR, args.expId, args.jobDB)
     EXP_ID = args.expId
-    
+
     # Initialize database connection
     db = JobDatabase(DB_FILE)
-    
-    if args.enableNgrok == True:
+
+    if args.enableNgrok == "True" or True:
         logging.info("Starting ngrok tunnel...")
         public_url = ngrok.connect(args.port)
         print(f" >> dashboard : {public_url}")
         logging.info(f"ngrok tunnel established at {public_url}")
-    
+
     # Start the Flask app
-    app.run(host=args.host, port=args.port)  
+    app.run(host=args.host, port=args.port)
 
 # python dashboard.py --expId=sim1 --jobDB=jobs.db --host=0.0.0.0 --port=5050
